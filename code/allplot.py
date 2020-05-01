@@ -440,7 +440,7 @@ def plot_histogram(l, varname,marked,savename,x_min,x_max,smoothed=None):
 def create_scatterplot(stats_df,classifiers_df,savename) :
     df = stats_df[["kl"]]
     df.loc[:,"kl_p"] = stats_df.kl_p_cvsc
-    df.loc[:,"Ys"] = classifiers_df.apply(lambda row: row[row==1].count(), axis=1)
+    df.loc[:,"Ys"] = classifiers_df.drop("KuLGaP",axis=1).apply(lambda row: row[row==1].count(), axis=1)
     
     plt.figure()
     plt.ylim(0,5)
@@ -453,4 +453,6 @@ def create_scatterplot(stats_df,classifiers_df,savename) :
     plt.plot([c,c], [0,5], 'k--', lw=1)
     plt.xlabel("Log(KL)")
     plt.ylabel("Number of Responder classification")
+    plt.ylim(-0.2,4.2)
+    plt.yticks(ticks=[0,1,2,3,4])
     plt.savefig(savename)
