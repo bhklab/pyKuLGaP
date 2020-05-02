@@ -452,7 +452,7 @@ def create_scatterplot(stats_df,classifiers_df,savename) :
     c=np.log(13.9)
     plt.plot([c,c], [0,5], 'k--', lw=1)
     plt.xlabel("Log(KL)")
-    plt.ylabel("Number of Responder classification")
+    plt.ylabel('Number of classifiers that agree on a "responder" label')
     plt.ylim(-0.2,4.2)
     plt.yticks(ticks=[0,1,2,3,4])
     plt.savefig(savename)
