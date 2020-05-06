@@ -205,6 +205,15 @@ if __name__ == '__main__':
 
     supfig3a_figname =  results_folder+"sup-fig3a.pdf"
     supfig3b_figname = results_folder+"sup-fig3b.pdf"
+    
+    supfig4a_figname =  results_folder+"sup-fig4a.pdf"
+    supfig4b_figname = results_folder+"sup-fig4b.pdf"
+    
+    supfig5a_figname =  results_folder+"sup-fig5a.pdf"
+    supfig5b_figname = results_folder+"sup-fig5b.pdf"
+    
+    supfig6a_figname =  results_folder+"sup-fig6a.pdf"
+    supfig6b_figname = results_folder+"sup-fig6b.pdf"
 
     histograms_out = results_folder+"KLDivergenceHistograms/"
 
@@ -662,7 +671,36 @@ if __name__ == '__main__':
     plot_category(case_fig3s,control_fig3s,means=None,savename=supfig3a_figname)
     plot_category(case_fig3s,control_fig3s,means="only",savename=supfig3b_figname)
     
+    
+    ## Supplementary Figure 4:    
+    
+    case_fig4s= all_patients[5].categories["C1"]
+    control_fig4s= all_patients[5].categories["Control"]    
+    plot_category(case_fig4s,control_fig4s,means=None,savename=supfig4a_figname)
+    plot_category(case_fig4s,control_fig4s,means="only",savename=supfig4b_figname)
+    
+    
+    ## Supplementary Figure 5:    
+    
+    case_fig5s= all_patients[60].categories["C3"]
+    control_fig5s= all_patients[60].categories["Control"]    
+    plot_category(case_fig5s,control_fig5s,means=None,savename=supfig5a_figname)
+    plot_category(case_fig5s,control_fig5s,means="only",savename=supfig5b_figname)  
+    
+    
+    
+    ## Supplementary Figure 6:    
+    
+    case_fig6s= all_patients[11].categories["C1"]
+    control_fig6s= all_patients[11].categories["Control"]    
+    plot_category(case_fig6s,control_fig6s,means=None,savename=supfig6a_figname)
+    plot_category(case_fig6s,control_fig6s,means="only",savename=supfig6b_figname)    
+    
     create_and_save_KT(classifiers_df,KT_outname)
+    
+
+    
+    
     
     
     
