@@ -7,6 +7,7 @@ Created on Thu Feb 13 15:39:56 2020
 """
 
 import numpy as np
+import pandas as pd
 
 from scipy.integrate import quad
 
@@ -81,14 +82,17 @@ def cv_smoothing(l):
     return sm.nonparametric.KDEMultivariate(data=l,var_type="c",bw="cv_ml")
 
 
-def calculate_null_kl (cat_list):
+def calculate_null_kl (cat_list,filename=None):
+       
     """
     :param cat_list:  The list of categories from which the null kl is to be calculated
-    
+    :param filename: If None, calculate from cat_list. Else read in from filename
     returns the list of values and the smoothed object
     """
-    
-    l = cross_kl_divergences(cat_list)
+    if filename is None:
+        l = cross_kl_divergences(cat_list)
+    else:
+        l = list(pd.read_csv(filename,header=None)[0])
     dens = cv_smoothing(l)
     return {"list":l,"smoothed":dens}
 

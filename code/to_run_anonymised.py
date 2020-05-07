@@ -162,6 +162,8 @@ if __name__ == '__main__':
     ############WHERE THE INPUT DATA IS SAVED##########################################################
     anon_filename = data_folder+"alldata_new.csv"
     filename_crown =  data_folder+"20180402_sheng_results.csv"
+    
+    kl_null_filename = data_folder + "kl_control_vs_control.csv"
     ############WHERE THE REPORT (THINGS THAT FAILED) IS SAVED#########################################
     out_report=results_folder+'report_all.txt'#'report_LPDX.txt'
     
@@ -174,6 +176,8 @@ if __name__ == '__main__':
     conservative_outname = results_folder+"Fig2_conservative.csv"
     conservative_outfigname = results_folder+"Fig2_conservative.pdf"
     scatterplot_outfigname = results_folder+"Fig2_scatterplot.pdf"    
+
+    
     
     fig1a_figname = results_folder+"fig1a.pdf"
     fig1b_figname = results_folder+"fig1b.pdf"
@@ -224,12 +228,13 @@ if __name__ == '__main__':
 
     ###################################################################################################
 
-    fit_gp = True#True # whether to fit GPs or not
+    fit_gp = True #True # whether to fit GPs or not
     draw_plots = True #whether to make PDF with plots+stats about each model
     
+    rerun_kl_null = False  #whether to re-compute the KL null distribution
     
-    
-    
+    if fit_gp is False:
+        rerun_kl_null=False
 
  
     all_patients = read_anonymised(anon_filename)
@@ -389,17 +394,17 @@ if __name__ == '__main__':
     fig_count=0 
     cur_case.kl_p_cvsc=None
     
-    if fit_gp:    
-        print("Now computing KL divergences between controls for kl_control_vs_control - this may take a moment")
-        controls = [patient.categories["Control"] for patient in all_patients]
-        kl_control_vs_control = calculate_null_kl(controls)
-        
-       
-        
-        
+    print("Now computing KL divergences between controls for kl_control_vs_control - this may take a moment")
+    controls = [patient.categories["Control"] for patient in all_patients]
+    if rerun_kl_null:
+        kl_control_vs_control = calculate_null_kl(controls,None)
+    else:
+        kl_control_vs_control = calculate_null_kl(controls,kl_null_filename) 
  
-        print("Done computing KL divergences between controls for kl_control_vs_control")
+    print("Done computing KL divergences between controls for kl_control_vs_control")
     
+    if fit_gp:    
+           
         #The following  plots the KL histgrams
         kl_histograms=defaultdict(list)          
         print ("Now computing KL p-values")
@@ -698,12 +703,10 @@ if __name__ == '__main__':
     
     create_and_save_KT(classifiers_df,KT_outname)
     
-
     
-    
-    
-    
-    
+    plot_everything("../results/allplot.pdf",all_patients,stats_df,classifiers_df,True,0.05,0.05,kl_control_vs_control["list"],.6)
     
 
+    
+    
     

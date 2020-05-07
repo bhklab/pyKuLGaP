@@ -1,0 +1,19 @@
+Errors during plotting:
+[]
+
+
+
+
+failed p-values:
+[]
+
+
+
+
+[('P6', ValueError('min() arg is an empty sequence',)), ('P12', ValueError('min() arg is an empty sequence',))]
+
+
+
+
+Errors during GP fitting:
+[]

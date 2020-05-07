@@ -349,6 +349,8 @@ def get_classification_df(all_patients,stats_df,p_val,all_kl,p_val_kl,tgi_thresh
                 predict[name] = [tsmaller(cur_cat.kl_p_cvsc,p_val,y=1,n=-1,na=0)]
                 #predict[name] = [tsmaller (p_value(stats_df.loc[name,"kl"],all_kl), p_val_kl,y=1,n=-1,na=0), ]
                 #KuLGaP-prev
+                print(patient.name,cat)
+                print(str(cur_cat.kl_divergence))
                 predict[name].append (tsmaller (p_value(cur_cat.kl_divergence,all_kl), p_val_kl,y=1,n=-1,na=0), )
                 #MRECIST_Novartis
     
