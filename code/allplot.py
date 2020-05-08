@@ -446,7 +446,7 @@ def create_scatterplot(stats_df,classifiers_df,savename) :
     
     plt.figure()
     plt.ylim(0,5)
-    plt.plot(df.kl.apply(logna),df.Ys,'r.')
+    plt.plot(df.kl.apply(logna),df.Ys,'r',marker=".",markersize=2,linestyle="")
     c=np.log(7.97)
     plt.plot([c,c], [0,5], 'k-', lw=1)
     c=np.log(5.61)
@@ -454,7 +454,7 @@ def create_scatterplot(stats_df,classifiers_df,savename) :
     c=np.log(13.9)
     plt.plot([c,c], [0,5], 'k--', lw=1)
     plt.xlabel("Log(KL)")
-    plt.ylabel('Number of classifiers that agree on a "responder" label')
+    plt.ylabel('Number of measures that agree on a "responder" label')
     plt.ylim(-0.2,4.2)
     plt.yticks(ticks=[0,1,2,3,4])
     plt.savefig(savename)
