@@ -13,6 +13,7 @@ import numpy as np
 from scipy.stats import mannwhitneyu
 from create_heatmaps import create_agreements, create_conservative, create_FDR, create_KT
 import seaborn as sns
+sns.set(style="ticks")
 
 
 from matplotlib import pylab as pl, patches as mp
@@ -440,6 +441,8 @@ def plot_histogram(l, varname,marked,savename,x_min,x_max,smoothed=None):
     
     
 def create_scatterplot(stats_df,classifiers_df,savename) :
+    
+    #deprecated, previous way to plot figure 2C.
     df = stats_df[["kl"]]
     df.loc[:,"kl_p"] = stats_df.kl_p_cvsc
     df.loc[:,"Ys"] = classifiers_df.drop("KuLGaP",axis=1).apply(lambda row: row[row==1].count(), axis=1)
@@ -458,3 +461,46 @@ def create_scatterplot(stats_df,classifiers_df,savename) :
     plt.ylim(-0.2,4.2)
     plt.yticks(ticks=[0,1,2,3,4])
     plt.savefig(savename)
+    
+    
+def plot_histograms_2c(stats_df,classifiers_df,savename):
+    data = stats_df[["kl"]]
+    data.loc[:,"klval"] = stats_df.kl.apply(logna)
+    data.loc[:,"count"] = classifiers_df.drop("KuLGaP",axis=1).apply(lambda row: row[row==1].count(), axis=1)
+    
+    ordering = list(data['count'].value_counts().index)
+    ordering.sort(reverse=True)
+    g = sns.FacetGrid(data, row="count", hue="count", row_order=ordering,
+                      height=1.5, aspect=4, margin_titles=False)
+    
+    # Draw the densities
+    g.map(plt.axhline, y=0, lw=1, clip_on=False, color='black')
+    g.map(sns.distplot, "klval", hist=True, rug=True, rug_kws={'height': 0.1})
+    
+    
+    # Define and use a simple function to label the plot in axes coordinates
+    def label(x, color, label):
+        ax = plt.gca()
+        ax.text(0, .2, label, fontweight="bold", color=color,
+                ha="left", va="center", transform=ax.transAxes)
+        ax.axvline(x=np.log(7.97), color='black', linestyle="-")   # specify critical value for p-val=0.05 
+        ax.axvline(x=np.log(5.61), color='black', linestyle="--")  # specify critical value for p-val=0.1
+        ax.axvline(x=np.log(13.9), color='black', linestyle="--")  # specify critical value for p-val=0.001 
+    
+    g.map(label, "klval")
+    
+    # Set the subplots to have no spacing
+    g.fig.subplots_adjust(hspace=0.01)
+    
+    # Remove axes details
+    g.set_titles("")
+    g.set(yticks=[])
+    
+    # Set labels
+    g.set_axis_labels(x_var='log(KL)')
+    plt.ylabel('Number of measures that agree on a "responder" label', horizontalalignment='left')
+    g.despine(bottom=True, left=True)
+    plt.savefig("{}.pdf".format(savename))
+    
+    
+    

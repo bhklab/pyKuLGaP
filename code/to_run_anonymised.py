@@ -19,9 +19,9 @@ from collections import defaultdict
 
 
 
-from allplot import plot_everything, create_and_plot_agreements, create_scatterplot, create_and_plot_conservative,\
+from allplot import plot_everything, create_and_plot_agreements, create_and_plot_conservative,\
     get_classification_df,get_classification_df_from_df,  plot_category, plot_gp, plot_histogram,\
-    create_and_plot_FDR, create_and_save_KT
+    create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
 
 import gc
 from read_data_from_anonymous import read_anonymised
@@ -224,6 +224,8 @@ if __name__ == '__main__':
     histograms_outfile=results_folder+"kl_histograms.csv"
     
     KT_outname = results_folder+"Kendalls_tau.csv"
+    
+    allplot_figname = results_folder+"allplot.pdf"
 
 
     ###################################################################################################
@@ -614,7 +616,7 @@ if __name__ == '__main__':
     create_and_plot_agreements(classifiers_df,agreements_outfigname,agreements_outname)
     #create_and_plot_conservative(classifiers_df,conservative_outfigname,conservative_outname)
     create_and_plot_FDR(classifiers_df,conservative_outfigname,conservative_outname)
-    create_scatterplot(full_stats_df,classifiers_df,scatterplot_outfigname)
+    plot_histograms_2c(full_stats_df,classifiers_df,scatterplot_outfigname)
 #    create_scatterplot(stats_df,classifiers_df,scatterplot_outfigname)
     
     
@@ -696,17 +698,12 @@ if __name__ == '__main__':
     
     ## Supplementary Figure 6:    
     
-    case_fig6s= all_patients[11].categories["C1"]
-    control_fig6s= all_patients[11].categories["Control"]    
+    case_fig6s= all_patients[2].categories["C1"]
+    control_fig6s= all_patients[2].categories["Control"]    
     plot_category(case_fig6s,control_fig6s,means=None,savename=supfig6a_figname)
     plot_category(case_fig6s,control_fig6s,means="only",savename=supfig6b_figname)    
     
     create_and_save_KT(classifiers_df,KT_outname)
     
     
-    plot_everything("../results/allplot.pdf",all_patients,stats_df,classifiers_df,True,0.05,0.05,kl_control_vs_control["list"],.6)
-    
-
-    
-    
-    
+    plot_everything(allplot_figname,all_patients,stats_df,classifiers_df,True,0.05,0.05,kl_control_vs_control["list"],.6)
