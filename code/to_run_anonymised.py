@@ -175,7 +175,7 @@ if __name__ == '__main__':
     agreements_outfigname=results_folder+"Fig2_agreements.pdf"
     conservative_outname = results_folder+"Fig2_conservative.csv"
     conservative_outfigname = results_folder+"Fig2_conservative.pdf"
-    scatterplot_outfigname = results_folder+"Fig2_scatterplot.pdf"    
+    scatterplot_outfigname = results_folder+"Fig2c"    
 
     
     
@@ -210,8 +210,8 @@ if __name__ == '__main__':
     supfig3a_figname =  results_folder+"sup-fig3a.pdf"
     supfig3b_figname = results_folder+"sup-fig3b.pdf"
     
-    supfig4a_figname =  results_folder+"sup-fig4a.pdf"
-    supfig4b_figname = results_folder+"sup-fig4b.pdf"
+    supfig4_figname =  results_folder+"sup-fig4.pdf"
+    
     
     supfig5a_figname =  results_folder+"sup-fig5a.pdf"
     supfig5b_figname = results_folder+"sup-fig5b.pdf"
@@ -605,8 +605,7 @@ if __name__ == '__main__':
     ## Fig 1c:
     plot_gp(case_fig1,control_fig1,savename=fig1c_figname)
     ## Fig 1d:
-    
-    plot_histogram(kl_control_vs_control["list"],"KL values",7.97,fig1d_figname,0,30,smoothed=kl_control_vs_control["smoothed"].pdf)
+    plot_histogram(kl_control_vs_control["list"],"KL values",marked=7.97,savename=fig1d_figname,x_min=0,x_max=30,smoothed=kl_control_vs_control["smoothed"].pdf)
     
     
 
@@ -681,11 +680,8 @@ if __name__ == '__main__':
     
     ## Supplementary Figure 4:    
     
-    case_fig4s= all_patients[5].categories["C1"]
-    control_fig4s= all_patients[5].categories["Control"]    
-    plot_category(case_fig4s,control_fig4s,means=None,savename=supfig4a_figname)
-    plot_category(case_fig4s,control_fig4s,means="only",savename=supfig4b_figname)
     
+    plot_histogram(kl_control_vs_control["list"],"KL values",solid=[7.97],dashed=[5.61,13.9],savename=supfig4_figname,x_min=0,x_max=30,smoothed=kl_control_vs_control["smoothed"].pdf)
     
     ## Supplementary Figure 5:    
     
@@ -707,3 +703,4 @@ if __name__ == '__main__':
     
     
     plot_everything(allplot_figname,all_patients,stats_df,classifiers_df,True,0.05,0.05,kl_control_vs_control["list"],.6)
+    

@@ -138,6 +138,9 @@ def plot_category(case,control,means=None,savename="figure.pdf",normalised=True)
     
     """
     case_y = case.y_norm if normalised else case.y
+    
+    if means not in [None,"only","both"]:
+        raise ValueError("means must be None, 'only', or 'both'")
   
     start, end = find_start_end(case,control)
     if control is None:
@@ -415,7 +418,7 @@ def create_and_save_KT(classifiers_df,KT_outname):
     
 
 
-def plot_histogram(l, varname,marked,savename,x_min,x_max,smoothed=None):
+def plot_histogram(l, varname,marked=None,savename=None,smoothed=None,x_min=None,x_max=None,dashed=None,solid=None):
     """
     Plots the histogram of var, with an asterix and an arrow at marked
     Labels the x axis according to varname
@@ -429,12 +432,22 @@ def plot_histogram(l, varname,marked,savename,x_min,x_max,smoothed=None):
         plt.plot(x,smoothed(x),"-r")
     plt.xlabel(varname)
     plt.ylabel("frequency")
-    plt.plot(marked,.02,marker="*",c="r")
-    style="Simple,tail_width=0.5,head_width=4,head_length=8"
-    kw = dict(arrowstyle=style, color="k")
-    plt.text(11,.2,"critical value")
-    arrow=mp.FancyArrowPatch(posA=[11,.2],posB=[marked+.25,0.035] ,connectionstyle="arc3,rad=-.25",**kw  )
-    plt.gca().add_patch(arrow)
+    if marked is not None:
+        plt.plot(marked,.02,marker="*",c="r")
+        style="Simple,tail_width=0.5,head_width=4,head_length=8"
+        kw = dict(arrowstyle=style, color="k")
+        plt.text(11,.2,"critical value")
+        arrow=mp.FancyArrowPatch(posA=[11,.2],posB=[marked+.25,0.035] ,connectionstyle="arc3,rad=-.25",**kw  )
+        plt.gca().add_patch(arrow)
+    if dashed is not None:
+        for val in dashed:
+            ax=plt.gca()
+            ax.axvline(x=val, color='black', linestyle="--")   
+    if solid is not None:
+        for val in solid:
+            ax = plt.gca()
+            ax.axvline(x=val, color='black', linestyle="-")  # critical value for p-val=0.1
+        
     plt.savefig(savename)
     return fig
     
@@ -483,9 +496,9 @@ def plot_histograms_2c(stats_df,classifiers_df,savename):
         ax = plt.gca()
         ax.text(0, .2, label, fontweight="bold", color=color,
                 ha="left", va="center", transform=ax.transAxes)
-        ax.axvline(x=np.log(7.97), color='black', linestyle="-")   # specify critical value for p-val=0.05 
-        ax.axvline(x=np.log(5.61), color='black', linestyle="--")  # specify critical value for p-val=0.1
-        ax.axvline(x=np.log(13.9), color='black', linestyle="--")  # specify critical value for p-val=0.001 
+        ax.axvline(x=np.log(7.97), color='black', linestyle="-")   # critical value for p-val=0.05 
+        ax.axvline(x=np.log(5.61), color='black', linestyle="--")  # critical value for p-val=0.1
+        ax.axvline(x=np.log(13.9), color='black', linestyle="--")  # critical value for p-val=0.001 
     
     g.map(label, "klval")
     
