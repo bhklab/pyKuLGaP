@@ -704,3 +704,13 @@ if __name__ == '__main__':
     
     plot_everything(allplot_figname,all_patients,stats_df,classifiers_df,True,0.05,0.05,kl_control_vs_control["list"],.6)
     
+    
+    
+    l = ["P11*C1","P40*C1","P34*C2","P48*C1","P5*C1","P28*C1","P3*C1","P11*C3","P60*C3","P2*C1"]
+    q
+    figure_classifiers =   classifiers_df.loc[l,:]
+    c = ["Figure 3","Figure 4AB","Figure 4CD","Figure 5AB","Figure 5CD"]
+    c+= ["Supplementary Figure {}".format(i) for i in [1,2,3,5,6]]
+    figure_classifiers.index = c
+    figure_classifiers.to_csv(results_folder+ "figure_classifiers.csv")
+    del c
