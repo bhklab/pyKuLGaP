@@ -6,4 +6,5 @@ recursive-include data *
 global-include *.py
 
 exclude .gitignore
-rescursive-exclude dist *
+recursive-exclude dist *
+recusrive-exclude __pycache__ *
