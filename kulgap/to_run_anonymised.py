@@ -9,95 +9,25 @@ from .allplot import plot_everything, create_and_plot_agreements, get_classifica
     get_classification_df_from_df, \
     plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-from .aux_functions import get_all_cats, calculate_AUC, calculate_null_kl
+from .aux_functions import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
+    relativize, centre, compute_response_angle
+
 from .read_data_from_anonymous import read_anonymised
 
 
-def remove_extremal_nas(y, replacement_value):  # What is y? A df?
-    """
-    Replace leading and trailing n/a values in the rows of y by replacement_value
-    Return the modified y, the start (first measurement) and the end (last measurement) dates
-
-    :param y [numpy array] the array to be modified:
-    :param replacement_value [int] The value with which the nas will be replaced:
-    :return [tuple] a tuple containing the items:
-        - y the modified numpy array
-        - first the last occasion of a leading na
-        - last the first occasion of a trailing na
-    """
-    firsts = []
-    lasts = []
-    for j, y_slice in enumerate(y):
-        ind = np.where(~np.isnan(y_slice))[0]
-        firsts.append(ind[0])
-        lasts.append(ind[-1])
-
-        y[j, :firsts[-1]] = replacement_value
-        y[j, lasts[-1] + 1:] = replacement_value
-    first = max(firsts)
-    last = min(lasts)
-    return y, first, last
-
-
-def forward_fill_nas(arr):
-    """
-    forward-fills na values in numpy array arr: replaces it by previous valid choice
-
-    :param arr [numpy array] the array to be modified:
-    :return [numpy array] the modified array:
-    """
-    mask = np.isnan(arr)
-    idx = np.where(~mask, np.arange(mask.shape[1]), 0)
-    np.maximum.accumulate(idx, axis=1, out=idx)
-    out = arr[np.arange(idx.shape[0])[:, None], idx]
-    return out
-
-
-def relativize(y, start):
-    """
-    Normalises a numpy array to a given start index.
-    :param y [numpy array] the array to be normalised:
-    :param start [int] the start index:
-    :return [numpy array] the modified array:
-    """
-    return y / y[start] - 1
-
-
-def centre(y, start):
-    """
-    Subtracts the value at index start from a numpy array
-    :param y [numpy array] the numpy array to be modified:
-    :param start [int] the index to centre on:
-    :return [numpy array] the modified array
-    """
-    return y - y[start]
-
-
-def compute_response_angle(x, y, start):
-    """
-    Calculates the response angle for observations y, given time points x and start point start
-    :param x [numpy array] the time points: 
-    :param y [numpy array] the observations:
-    :param start [umpy array] the start point for the angle computation:
-    :return [float] the angle:
-    """
-    l = min(len(x), len(y))
-    model = sm.OLS(y[start:l], x[start:l])
-    results = model.fit()
-    return np.arctan(results.params[0])
 
 
 
-def dict_to_string(dictionary):
-    """
-    Write the input dictionary to a string of the form {key:entry,...}
-    :param dictionary: A dictionary
-    :return: The converted string
-    """
-    return "_".join([str(key) + ":" + str(value) for key, value in dictionary.items()])
+
+
+
+
+
 
 
 ignore_list = []
+
+
 
 
 
@@ -198,7 +128,7 @@ if __name__ == '__main__':
     # =============================================================================
     # GP fitting and calculation of other parameters.
     # =============================================================================
-
+    #TODO: replace by fit_all_gps(all_patients, ... )
     for i in range(0, len(all_patients)):
         print("Now dealing with patient %d of %d" % (i + 1, len(all_patients)))
 
@@ -538,10 +468,8 @@ if __name__ == '__main__':
 
     # Figure 2: heatmaps and scatterplot
     create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname)
-    # create_and_plot_conservative(classifiers_df,conservative_outfigname,conservative_outname)
     create_and_plot_FDR(classifiers_df, conservative_outfigname, conservative_outname)
     plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
-    #    create_scatterplot(stats_df,classifiers_df,scatterplot_outfigname)
 
     # Figures 3 - 5: individual plots    
     #    plot_category(case,control,means=None)

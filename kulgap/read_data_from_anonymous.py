@@ -6,18 +6,18 @@ from . import pdxat
 
 def str_to_array(string):
     """
-
-    :param string:
-    :return:
+    Converts a string representation of an array back to the array
+    :param string the string representation:
+    :return [ndarray] the array from the string representation:
     """
     return float(string.replace("[", "").replace("]", ""))
 
 
 def read_anonymised(filename):
     """
-
-    :param filename:
-    :return:
+    Reads in data from a file containing anonymised PDX data
+    :param filename The name of the file:
+    :return [list] A list of Patient objects: 
     """
     patients_list = []
     df = pd.read_csv(filename, index_col=0)

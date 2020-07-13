@@ -6,45 +6,76 @@ from matplotlib import pylab as pl, patches as mp
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.stats import mannwhitneyu
 
-from .create_heatmaps import create_agreements, create_conservative, create_FDR, create_KT
+from .create_heatmaps import create_agreements, create_FDR, create_KT
+#from .create_heatmaps import create_conservative, 
 
 sns.set(style="ticks")
 
 
 def plusnone(a, b):
     """
-
-    :param a:
-    :param b:
-    :return:
+    Add a and b, returning None if either of them is None
+    :param a: The first summand
+    :param b: The second summand
+    :return: The sum
     """
     if (a is None) or (b is None):
         return None
     return a + b
 
 
-def dictvals(d):
+def dictvals(dictionary):
+    """
+    Returns the list of elements in a dictionary, unpacking them if they are inside a list
+    :param dictionary: the dictionary to be unpacked
+    :returns :[list]
+    """
     try:
-        return [x[0] for x in d.values()]
+        return [x[0] for x in dictionary.values()]
     except IndexError:
-        return list(d.values())
+        return list(dictionary.values())
     except TypeError:
-        return list(d.values())
+        return list(dictionary.values())
 
 
-def bts(b, y="Y", n="N"):
-    if b:
+def bts(boolean, y="Y", n="N"):
+    """
+    Converts a boolean value to a string
+    :param boolean: The boolean to be converted
+    :param y: [string] the value to be returned if boolean is True
+    :param n: [string] the value to be returned if boolean is False
+    :return [string]:    
+    """
+    if boolean:
         return y
     return n
 
 
 def tsmaller(v1, v2, y="Y", n="N", na="N/a"):
+    """
+    Compares v1 with v2. Returns the value of y if v1 is smaller than v2 and the value of n
+    otherwise. Returns na if either of v1 or v2 is None
+    :param v1: the first value of the comparison
+    :param v2: the first value of the comparison 
+    :param y: the value to be returned if v1<v2
+    :param n: the value to be returned if v1>=v2
+    :param na: the value to be returned if either v1 or v2 is None.
+    """
     if (v1 is not None) and (v2 is not None):
         return bts(v1 < v2, y=y, n=n)
     return na
 
 
 def mw_letter(d1, d2, pval=0.05, y="Y", n="N", na=None):
+    """
+    Mann-Whitney U test on d1, d2.
+    :param d1: The first list or dict-object to be compared
+    :param d2: The second list or dict-object to be compared  
+    :param pval: The p-value to be used
+    :param y: Returned if the test is significant
+    :param n: Returned if the test is not significant
+    :param na: Returned if the test fails
+    """
     l1 = dictvals(d1)
     l2 = dictvals(d2)
     try:
@@ -56,6 +87,15 @@ def mw_letter(d1, d2, pval=0.05, y="Y", n="N", na=None):
 
 
 def mw_letter_from_strings(s1, s2, pval=0.05, y="Y", n="N", na=None):
+    """
+    Turn strings s1, s2 into dictionaries, then apply Mann-Whitney test as in mw_letter
+    :param s1: The first string to be compared
+    :param s2: The second string to be compared  
+    :param pval: The p-value to be used
+    :param y: Returned if the test is significant
+    :param n: Returned if the test is not significant
+    :param na: Returned if the test fails
+    """
     if ("nan" == str(s1)) or ("nan" == str(s2)):
         if na is None:
             return "no value"
@@ -64,12 +104,25 @@ def mw_letter_from_strings(s1, s2, pval=0.05, y="Y", n="N", na=None):
 
 
 def dict_from_string(s):
+    """
+    Inverse of dict_to_string. Takes the string representation of a dictionary and returns
+    the original dictionary.
+    :param s: The string representation of the dictionary
+    :return: [dict] the dictionary
+    """
     l = s.replace("[", "").replace("]", "").split("_")
     d = {x.split(":")[0]: float(x.split(":")[1]) for x in l}
     return d
 
 
 def pointwise_kl(case, control, t):
+    """
+    Calculates the point-wise KL divergence between case and control at time t
+    :param case: The treatment Category
+    :param controL: The control Category
+    :param t: The time point
+    :return: [float] The KL value.
+    """
     mean_control, var_control = control.gp.predict(np.asarray([[t]]))
     mean_case, var_case = case.gp.predict(np.asarray([[t]]))
     return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
@@ -77,11 +130,24 @@ def pointwise_kl(case, control, t):
 
 
 def p_value(y, l2):
-    # returns p-value for each x, based on l2
+    """
+    returns p-value for each y based on l2
+    :param y: The value for which the p-value is to be computed
+    :param l2: The list of values on which the p-value calculation is based
+    :return: The calculated p-value
+    """
     return (len([x for x in l2 if x >= y]) + 1) / (len(l2) + 1)
 
 
 def find_start_end(case, control):
+    """
+    Find the measurement start and end of a control, treatment pair.
+    :param case: The treatment Category
+    :param controL: The control Category
+    :return a [tuple]:
+        - the start index point
+        - the end index point
+    """
     if control is None:
         start = case.find_start_date_index()
         end = case.measurement_end
@@ -93,6 +159,11 @@ def find_start_end(case, control):
 
 
 def logna(x):
+    """
+    Calcluate the log of x except return 0 if x is None
+    :param x: the input value
+    :return: the log or 0.
+    """
     if x is None:
         return 0
     return np.log(x)
@@ -100,10 +171,10 @@ def logna(x):
 
 def plot_gp(case, control, savename):
     """
-
-    :param case:
-    :param control:
-    :param savename:
+    Plots a GP fitted to a treatment and control pair.
+    :param case: The treatment Category
+    :param controL: The control Category
+    :param savename: name under which the plot will be saved.
     """
     start, end = find_start_end(case, control)
     plot_limits = [case.x[start][0], case.x[end - 1][0] + 1]
@@ -127,14 +198,17 @@ def plot_gp(case, control, savename):
 
 
 def plot_category(case, control, means=None, savename="figure.pdf", normalised=True):
+
     """
+    Fully plot a category
     :param case: the category to be plotted. Not allowed to be None
     :param control : the corresponding control to be plotted. Can be None
     :paran mean:  whether the mean values across replicates are also plotted. Can be None
         (mean will not be plotted), "both" (mean is overlayed) or "only" 
         (only mean is plotted)
-        
+    :param savename: The file name under which the figure will be saved.
     :param normalised: If true, plots the normalised versions (case.y_norm). Otherwise case.y
+    :return [Figure]: The figure showing the plot
     """
     case_y = case.y_norm if normalised else case.y
 
@@ -195,16 +269,16 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
 
 def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val_kl, all_kl, tgi_thresh):
     """
-
-    :param outname:
-    :param all_patients:
-    :param stats_df:
-    :param ag_df:
-    :param fit_gp:
-    :param p_val:
-    :param p_val_kl:
-    :param all_kl:
-    :param tgi_thresh:
+    Plot a long PDF, one page per patient in all_patients
+    :param outname: The name under which the PDF will be saved
+    :param all_patients: list of Patient objects to be plotted
+    :param stats_df: corresponding DataFrame of continuous statisitics
+    :param ag_df: corresponding DataFrame of aggregated statisitics
+    :param fit_gp: whether a GP was fitted
+    :param p_val: the p-value
+    :param p_val_kl: The p-value for the KuLGaP calculation
+    :param all_kl: The list of KL null values
+    :param tgi_thresh: The threshold for calling a TGI response.
     """
     # TO ADD: NICER LAYOUT - SET FIGURE SIZE BY SUBPLOT?
     # TO ADD: PLOT BEFORE CUT-OFF (to see whether it's just a single replicate)
@@ -296,29 +370,19 @@ def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val
                     plt.close()
 
 
-def nfv(x):
-    """
-
-    :param x:
-    :return:
-    """
-    if (x < 1 and np.random.randint(0, 5) < 3) or x > 25:
-        return np.random.randint(0, 3)
-    return x
 
 
 def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
-
-    :param stats_df:
-    :param p_val:
-    :param all_kl:
-    :param p_val_kl:
-    :param tgi_thresh:
+    Computes the DF of classifications (which measures call a Responder) from the continuous statistics
+    :param stats_df: corresponding DataFrame of continuous statisitics
+    :param p_val: the p-value
+    :param all_kl: The list of KL null values
+    :param p_val_kl: The p-value for the KuLGaP calculation
+    :param tgi_thresh: The threshold for calling a TGI response.    
     :return:
     """
     responses = stats_df.copy()[["kl"]]
-    ## TODO: FIX - kl_p_cvsc is still wrong in Sheng dataset (crown_df)
 
     responses["kulgap"] = stats_df.kl_p_cvsc.apply(lambda x: tsmaller(x, p_val, y=1, n=-1, na=0))
     responses["kulgap-prev"] = stats_df.kl.apply(lambda x: tsmaller(p_value(x, all_kl), p_val_kl, y=1, n=-1, na=0))
@@ -339,14 +403,15 @@ def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh)
 
 def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
-
+    Return the responses (responder/non-responder calls) as a dictionary
     :param all_patients:
-    :param stats_df:
-    :param p_val:
-    :param all_kl:
-    :param p_val_kl:
-    :param tgi_thresh:
-    :return:
+    :param stats_df: corresponding DataFrame of continuous statistics
+    :param p_val: the p-value
+    :param all_kl: The list of KL null values
+    :param p_val_kl: The p-value for the KuLGaP calculation
+    :param tgi_thresh: The threshold for calling a TGI response.    
+
+    :return: a dictionary of lists of calls (values) for each classifier (keys)
     """
     predict = {"kulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
                "TGI": []}
@@ -370,14 +435,15 @@ def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi
 
 def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
+    Return the responses (responder/non-responder calls) as a DataFrame
+    :param all_patients: A list of Patient objects
+    :param stats_df: corresponding DataFrame of continuous statistics
+    :param p_val: the p-value
+    :param all_kl: The list of KL null values
+    :param p_val_kl: The p-value for the KuLGaP calculation
+    :param tgi_thresh: The threshold for calling a TGI response.    
 
-    :param all_patients:
-    :param stats_df:
-    :param p_val:
-    :param all_kl:
-    :param p_val_kl:
-    :param tgi_thresh:
-    :return:
+    :return: [DataFrame] The DataFrame of responders (one column per measure, one row per experiment)
     """
     predict = {}
     #    predict = {"kulgap": [], "AUC":[],"Angle":[],"mRECIST_Novartis":[],"mRECIST_ours":[]}
@@ -387,7 +453,6 @@ def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_t
                 name = str(patient.name) + "*" + str(cat)
 
                 predict[name] = [tsmaller(cur_cat.kl_p_cvsc, p_val, y=1, n=-1, na=0)]
-                # predict[name] = [tsmaller (p_value(stats_df.loc[name,"kl"],all_kl), p_val_kl,y=1,n=-1,na=0), ]
                 # kulgap-prev
                 print(patient.name, cat)
                 print(str(cur_cat.kl_divergence))
@@ -414,10 +479,10 @@ def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_t
 
 def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname):
     """
-
-    :param classifiers_df:
-    :param agreements_outfigname:
-    :param agreements_outname:
+    Creates and plots the agreement matrix between measures
+    :param classifiers_df: The DataFrame of responder calls
+    :param agreements_outfigname: Name under which the figure will be saved
+    :param agreements_outname: Name under which the data will be saved.
     """
     agreements = create_agreements(classifiers_df)
     agreements.to_csv(agreements_outname)
@@ -431,30 +496,31 @@ def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements
     plt.savefig(agreements_outfigname)
 
 
-def create_and_plot_conservative(classifiers_df, conservative_outfigname, conservative_outname):
-    """
+#TODO: this function to be removed
+# def create_and_plot_conservative(classifiers_df, conservative_outfigname, conservative_outname):
+#     """
 
-    :param classifiers_df:
-    :param conservative_outfigname:
-    :param conservative_outname:
-    """
-    conservative = create_conservative(classifiers_df)
-    conservative.to_csv(conservative_outname)
-    paper_list = ["kulgap", "TGI", "mRECIST", "AUC", "Angle"]
-    con2 = conservative[paper_list].reindex(paper_list)
-    plt.figure()
-    sns.heatmap(con2, cmap="coolwarm", square=True, annot=con2,
-                cbar=False, linewidths=.3, linecolor="k", vmin=-.8, vmax=.8, center=-0.1)
-    # sns.heatmap(conservative, square=True,annot=conservative.round(2),cmap="coolwarm",cbar=False)
-    plt.savefig(conservative_outfigname)
+#     :param classifiers_df:
+#     :param conservative_outfigname:
+#     :param conservative_outname:
+#     """
+#     conservative = create_conservative(classifiers_df)
+#     conservative.to_csv(conservative_outname)
+#     paper_list = ["kulgap", "TGI", "mRECIST", "AUC", "Angle"]
+#     con2 = conservative[paper_list].reindex(paper_list)
+#     plt.figure()
+#     sns.heatmap(con2, cmap="coolwarm", square=True, annot=con2,
+#                 cbar=False, linewidths=.3, linecolor="k", vmin=-.8, vmax=.8, center=-0.1)
+#     # sns.heatmap(conservative, square=True,annot=conservative.round(2),cmap="coolwarm",cbar=False)
+#     plt.savefig(conservative_outfigname)
 
 
 def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
     """
-
-    :param classifiers_df:
-    :param FDR_outfigname:
-    :param FDR_outname:
+    Creates the false discovery matrix and then plots it
+    :param classifiers_df: The DataFrame of responder calls
+    :param FDR_outfigname: Name under which the figure will be saved
+    :param FDR_outname: Name under which the data will be saved.
     """
     FDR = create_FDR(classifiers_df)
     FDR.to_csv(FDR_outname)
@@ -468,31 +534,29 @@ def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
 
 def create_and_save_KT(classifiers_df, KT_outname):
     """
-
-    :param classifiers_df:
-    :param KT_outname:
+    Creates and saves the matrix of Kendall Tau tests between the responder calls
+    :param classifiers_df: The DataFrame of responder calls
+    :param KT_outname: The name under which the data will be saved
     """
     kts = create_KT(classifiers_df)
     print(kts)
     kts.to_csv(KT_outname)
 
 
-def plot_histogram(l, varname, marked=None, savename=None, smoothed=None, x_min=None, x_max=None, dashed=None,
+def plot_histogram(list_to_be_plotted, varname, marked=None, savename=None, smoothed=None, x_min=None, x_max=None, dashed=None,
                    solid=None):
-    ## FIXME: Ambiguous variable name 'l', please us plain english - ideally code should make sense when read aloud
     """
-    Plots the histogram of var, with an asterix and an arrow at marked
+    Plots the histogram of list_to_be_plotted, with an asterix and an arrow at marked
     Labels the x axis according to varname
-
-    :param l:
-    :param varname:
-    :param marked:
-    :param savename:
-    :param smoothed:
-    :param x_min:
-    :param x_max:
-    :param dashed:
-    :param solid:
+    :param list_to_be_plotted: The list to be plotted
+    :param varname: The label for the x-axis
+    :param marked: Where the arrow is to appear
+    :param savename: Filename under which the figure will be saved
+    :param smoothed: Either none or a smoothed object
+    :param x_min: The left end point of the range of x-values
+    :param x_max: The right end point of the range of x-values
+    :param dashed: Where to draw a vertical dashed line
+    :param solid: Where to draw a vertical solid line
     :return:
     """
     fig = plt.figure()
@@ -517,46 +581,46 @@ def plot_histogram(l, varname, marked=None, savename=None, smoothed=None, x_min=
     if solid is not None:
         for val in solid:
             ax = plt.gca()
-            ax.axvline(x=val, color='black', linestyle="-")  # critical value for p-val=0.1
+            ax.axvline(x=val, color='black', linestyle="-")
 
     plt.savefig(savename)
     return fig
 
+#TODO: This function to be removedl
+# def create_scatterplot(stats_df, classifiers_df, savename):
+#     """
 
-def create_scatterplot(stats_df, classifiers_df, savename):
-    """
+#     :param stats_df:
+#     :param classifiers_df:
+#     :param savename:
+#     """
+#     # deprecated, previous way to plot figure 2C.
+#     df = stats_df[["kl"]]
+#     df.loc[:, "kl_p"] = stats_df.kl_p_cvsc
+#     df.loc[:, "Ys"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
 
-    :param stats_df:
-    :param classifiers_df:
-    :param savename:
-    """
-    # deprecated, previous way to plot figure 2C.
-    df = stats_df[["kl"]]
-    df.loc[:, "kl_p"] = stats_df.kl_p_cvsc
-    df.loc[:, "Ys"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
-
-    plt.figure()
-    plt.ylim(0, 5)
-    plt.plot(df.kl.apply(logna), df.Ys, 'r', marker=".", markersize=2, linestyle="")
-    c = np.log(7.97)
-    plt.plot([c, c], [0, 5], 'k-', lw=1)
-    c = np.log(5.61)
-    plt.plot([c, c], [0, 5], 'k--', lw=1)
-    c = np.log(13.9)
-    plt.plot([c, c], [0, 5], 'k--', lw=1)
-    plt.xlabel("Log(KL)")
-    plt.ylabel('Number of measures that agree on a "responder" label')
-    plt.ylim(-0.2, 4.2)
-    plt.yticks(ticks=[0, 1, 2, 3, 4])
-    plt.savefig(savename)
+#     plt.figure()
+#     plt.ylim(0, 5)
+#     plt.plot(df.kl.apply(logna), df.Ys, 'r', marker=".", markersize=2, linestyle="")
+#     c = np.log(7.97)
+#     plt.plot([c, c], [0, 5], 'k-', lw=1)
+#     c = np.log(5.61)
+#     plt.plot([c, c], [0, 5], 'k--', lw=1)
+#     c = np.log(13.9)
+#     plt.plot([c, c], [0, 5], 'k--', lw=1)
+#     plt.xlabel("Log(KL)")
+#     plt.ylabel('Number of measures that agree on a "responder" label')
+#     plt.ylim(-0.2, 4.2)
+#     plt.yticks(ticks=[0, 1, 2, 3, 4])
+#     plt.savefig(savename)
 
 
 def plot_histograms_2c(stats_df, classifiers_df, savename):
     """
-
-    :param stats_df:
-    :param classifiers_df:
-    :param savename:
+    Plots Figure 2C in the paper.
+    :param stats_df: [DataFrame] The raw values of the statistics
+    :param classifiers_df: [DataFrame] The binary values (1/0) of the measures
+    :param savename: The name under which the figure is saved.
     """
     data = stats_df[["kl"]]
     data.loc[:, "klval"] = stats_df.kl.apply(logna)
