@@ -15,12 +15,15 @@ from .read_data_from_anonymous import read_anonymised
 
 def remove_extremal_nas(y, replacement_value):  # What is y? A df?
     """
-    Replaces leading and trailing n/a values in the rows of y by replacement_value
-    Returns the modified y, the start (first measurement) and the end (last measurement) dates
+    Replace leading and trailing n/a values in the rows of y by replacement_value
+    Return the modified y, the start (first measurement) and the end (last measurement) dates
 
-    :param y:
-    :param replacement_value:
-    :return:
+    :param y [numpy array] the array to be modified:
+    :param replacement_value [int] The value with which the nas will be replaced:
+    :return [tuple] a tuple containing the items:
+        - y the modified numpy array
+        - first the last occasion of a leading na
+        - last the first occasion of a trailing na
     """
     firsts = []
     lasts = []
@@ -38,10 +41,10 @@ def remove_extremal_nas(y, replacement_value):  # What is y? A df?
 
 def forward_fill_nas(arr):
     """
-    forward-fills n/a values in numpy array arr: replaces it by previous valid choice
+    forward-fills na values in numpy array arr: replaces it by previous valid choice
 
-    :param arr:
-    :return:
+    :param arr [numpy array] the array to be modified:
+    :return [numpy array] the modified array:
     """
     mask = np.isnan(arr)
     idx = np.where(~mask, np.arange(mask.shape[1]), 0)
@@ -52,31 +55,31 @@ def forward_fill_nas(arr):
 
 def relativize(y, start):
     """
-
-    :param y:
-    :param start:
-    :return:
+    Normalises a numpy array to a given start index.
+    :param y [numpy array] the array to be normalised:
+    :param start [int] the start index:
+    :return [numpy array] the modified array:
     """
     return y / y[start] - 1
 
 
 def centre(y, start):
     """
-
-    :param y:
-    :param start:
-    :return:
+    Subtracts the value at index start from a numpy array
+    :param y [numpy array] the numpy array to be modified:
+    :param start [int] the index to centre on:
+    :return [numpy array] the modified array
     """
     return y - y[start]
 
 
 def compute_response_angle(x, y, start):
     """
-
-    :param x:
-    :param y:
-    :param start:
-    :return:
+    Calculates the response angle for observations y, given time points x and start point start
+    :param x [numpy array] the time points: 
+    :param y [numpy array] the observations:
+    :param start [umpy array] the start point for the angle computation:
+    :return [float] the angle:
     """
     l = min(len(x), len(y))
     model = sm.OLS(y[start:l], x[start:l])
@@ -84,52 +87,20 @@ def compute_response_angle(x, y, start):
     return np.arctan(results.params[0])
 
 
-## FIXME:: No one letter parameter names, very un-Pythonic
-def dict_to_string(d):
+
+def dict_to_string(dictionary):
     """
-
-    :param d:
-    :return:
+    Write the input dictionary to a string of the form {key:entry,...}
+    :param dictionary: A dictionary
+    :return: The converted string
     """
-    return "_".join([str(key) + ":" + str(value) for key, value in d.items()])
+    return "_".join([str(key) + ":" + str(value) for key, value in dictionary.items()])
 
 
-# the list of data that we can't use because of missing data in cells
 ignore_list = []
-# ignore_list = ['NSCLC #191', 'NSCLC#191', 'Model Breast Cancer Notch 101',
-#              'Breast Cancer Notch 101', 'Model NOTCH xeno line', 'OVR line #2508-P8',
-#               'NOTCH 010-002(F)- 001', 'Unknown',
-#               '164-401F-502-601-701-803-903F-1001-1101& 1102',
-#               '164 KOTA-P3-401S(F)-502S-601S-701S-803S-902S-1001S',
-#               '164Kota-P3-401S(F)-503S(F)-611S-707']
 
 
-# to_replace= { 'Doc+ Sel Concomitant': 'Doce +Sel Concomitant','Doc+ Sel Concomitant':'Doce +Sel Concomitant','Pacli + PF384' : 'Paclitaxel + PF384', 'PF384 + PF299': 'PF299+ PF384',
-#             'NVP-BJG398':'NVP-BGJ398', 'BJG398 + Crizotinib' : 'BGJ-398 + Crizotinib', 'Doc + Sel Concomitant' : 'Doce +Sel Concomitant', 'Criz' : 'Crizotinib', 'BKM120': 'BKM-120',
-#             'Erlotinib 25mg' : 'Erlotinib', 'BGJ398':'BGJ-398',  'BGJ698':'BGJ-398', 'BGJ698+Crizotinib':'BGJ-398 + Crizotinib','AZAD4547':'AZD4547',
-#             'BGJ398+Crizotinib': 'BGJ-398 + Crizotinib', 'Vin+Cis' : 'Cis + Vin', 'Doc + Sel Sequential' : 'Doce + Sel Sequential', 'BJG398':'BGJ398', 'Vendatinib' : 'Vandetanib', 
-#             'PF384+Cisplatin' : 'Cis + PF384' }
-#
-# drugs={}
 
-
-# TODO: check if following function can be deleted
-#
-# def create_category_to_growth(sheet_data, sheet):
-#    category_to_growth = {}
-#    for replicate in sheet_data[sheet]['Data']:
-#        number = replicate[0]
-#        category = replicate[1].strip()
-#        if category in to_replace:
-#            category=to_replace[category]
-#        growth = sheet_data[sheet]['Data'][replicate]
-#        if category not in category_to_growth:
-#            category_to_growth[category] = {}
-#            category_to_growth[category][number] = growth
-#        else:
-#            category_to_growth[category][number] = growth
-#
-#    return category_to_growth
 
 
 if __name__ == '__main__':
