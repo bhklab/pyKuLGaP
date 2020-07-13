@@ -36,10 +36,11 @@ def get_all_cats(all_patients):
 
 def calculate_AUC(x, y):
     """
+    Calculates the area under the curve of a set of observations 
 
-    :param x:
-    :param y:
-    :return:
+    :param x [ndarray] the time points:
+    :param y [ndarray] the observations:
+    :return [float] The area under the curve:    
     """
     AUC = 0
     l = min(len(x), len(y))
@@ -50,10 +51,10 @@ def calculate_AUC(x, y):
 
 def kl_divergence(case, control):
     """
-
-    :param case:
-    :param control:
-    :return:
+    Calcluates KL divergence between case and control
+    :param case: The treatment Category object
+    :param control: The control Category object
+    :return: [float] The KL value
     """
 
     def kl_integrand(t):
@@ -92,6 +93,7 @@ def cross_kl_divergences(cat_list):
 
 def cv_smoothing(list_to_be_smoothed):
     """
+    Computes kernel smoothing for list_to_be_smoothed
     :param list_to_be_smoothed: the list to be smoothed. Needs to be of type numeric.
     
     :return: a KDEMultivariate object, smoothed using leave-one-out cross-validation
