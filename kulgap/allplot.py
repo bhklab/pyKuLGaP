@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib import pylab as pl, patches as mp
-import pandas as pd
 import numpy as np
-from scipy.stats import mannwhitneyu
+import pandas as pd
 import seaborn as sns
+from matplotlib import pylab as pl, patches as mp
+from matplotlib.backends.backend_pdf import PdfPages
+from scipy.stats import mannwhitneyu
+
 from .create_heatmaps import create_agreements, create_conservative, create_FDR, create_KT
 
 sns.set(style="ticks")
@@ -13,9 +14,9 @@ sns.set(style="ticks")
 def plusnone(a, b):
     """
 
-    @param a:
-    @param b:
-    @return:
+    :param a:
+    :param b:
+    :return:
     """
     if (a is None) or (b is None):
         return None
@@ -100,9 +101,9 @@ def logna(x):
 def plot_gp(case, control, savename):
     """
 
-    @param case:
-    @param control:
-    @param savename:
+    :param case:
+    :param control:
+    :param savename:
     """
     start, end = find_start_end(case, control)
     plot_limits = [case.x[start][0], case.x[end - 1][0] + 1]
@@ -195,15 +196,15 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
 def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val_kl, all_kl, tgi_thresh):
     """
 
-    @param outname:
-    @param all_patients:
-    @param stats_df:
-    @param ag_df:
-    @param fit_gp:
-    @param p_val:
-    @param p_val_kl:
-    @param all_kl:
-    @param tgi_thresh:
+    :param outname:
+    :param all_patients:
+    :param stats_df:
+    :param ag_df:
+    :param fit_gp:
+    :param p_val:
+    :param p_val_kl:
+    :param all_kl:
+    :param tgi_thresh:
     """
     # TO ADD: NICER LAYOUT - SET FIGURE SIZE BY SUBPLOT?
     # TO ADD: PLOT BEFORE CUT-OFF (to see whether it's just a single replicate)
@@ -298,8 +299,8 @@ def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val
 def nfv(x):
     """
 
-    @param x:
-    @return:
+    :param x:
+    :return:
     """
     if (x < 1 and np.random.randint(0, 5) < 3) or x > 25:
         return np.random.randint(0, 3)
@@ -309,12 +310,12 @@ def nfv(x):
 def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
 
-    @param stats_df:
-    @param p_val:
-    @param all_kl:
-    @param p_val_kl:
-    @param tgi_thresh:
-    @return:
+    :param stats_df:
+    :param p_val:
+    :param all_kl:
+    :param p_val_kl:
+    :param tgi_thresh:
+    :return:
     """
     responses = stats_df.copy()[["kl"]]
     ## TODO: FIX - kl_p_cvsc is still wrong in Sheng dataset (crown_df)
@@ -339,13 +340,13 @@ def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh)
 def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
 
-    @param all_patients:
-    @param stats_df:
-    @param p_val:
-    @param all_kl:
-    @param p_val_kl:
-    @param tgi_thresh:
-    @return:
+    :param all_patients:
+    :param stats_df:
+    :param p_val:
+    :param all_kl:
+    :param p_val_kl:
+    :param tgi_thresh:
+    :return:
     """
     predict = {"kulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
                "TGI": []}
@@ -370,13 +371,13 @@ def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi
 def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
 
-    @param all_patients:
-    @param stats_df:
-    @param p_val:
-    @param all_kl:
-    @param p_val_kl:
-    @param tgi_thresh:
-    @return:
+    :param all_patients:
+    :param stats_df:
+    :param p_val:
+    :param all_kl:
+    :param p_val_kl:
+    :param tgi_thresh:
+    :return:
     """
     predict = {}
     #    predict = {"kulgap": [], "AUC":[],"Angle":[],"mRECIST_Novartis":[],"mRECIST_ours":[]}
@@ -414,9 +415,9 @@ def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_t
 def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname):
     """
 
-    @param classifiers_df:
-    @param agreements_outfigname:
-    @param agreements_outname:
+    :param classifiers_df:
+    :param agreements_outfigname:
+    :param agreements_outname:
     """
     agreements = create_agreements(classifiers_df)
     agreements.to_csv(agreements_outname)
@@ -433,9 +434,9 @@ def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements
 def create_and_plot_conservative(classifiers_df, conservative_outfigname, conservative_outname):
     """
 
-    @param classifiers_df:
-    @param conservative_outfigname:
-    @param conservative_outname:
+    :param classifiers_df:
+    :param conservative_outfigname:
+    :param conservative_outname:
     """
     conservative = create_conservative(classifiers_df)
     conservative.to_csv(conservative_outname)
@@ -451,9 +452,9 @@ def create_and_plot_conservative(classifiers_df, conservative_outfigname, conser
 def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
     """
 
-    @param classifiers_df:
-    @param FDR_outfigname:
-    @param FDR_outname:
+    :param classifiers_df:
+    :param FDR_outfigname:
+    :param FDR_outname:
     """
     FDR = create_FDR(classifiers_df)
     FDR.to_csv(FDR_outname)
@@ -468,8 +469,8 @@ def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
 def create_and_save_KT(classifiers_df, KT_outname):
     """
 
-    @param classifiers_df:
-    @param KT_outname:
+    :param classifiers_df:
+    :param KT_outname:
     """
     kts = create_KT(classifiers_df)
     print(kts)
@@ -483,16 +484,16 @@ def plot_histogram(l, varname, marked=None, savename=None, smoothed=None, x_min=
     Plots the histogram of var, with an asterix and an arrow at marked
     Labels the x axis according to varname
 
-    @param l:
-    @param varname:
-    @param marked:
-    @param savename:
-    @param smoothed:
-    @param x_min:
-    @param x_max:
-    @param dashed:
-    @param solid:
-    @return:
+    :param l:
+    :param varname:
+    :param marked:
+    :param savename:
+    :param smoothed:
+    :param x_min:
+    :param x_max:
+    :param dashed:
+    :param solid:
+    :return:
     """
     fig = plt.figure()
     var = pd.Series(l)
@@ -525,9 +526,9 @@ def plot_histogram(l, varname, marked=None, savename=None, smoothed=None, x_min=
 def create_scatterplot(stats_df, classifiers_df, savename):
     """
 
-    @param stats_df:
-    @param classifiers_df:
-    @param savename:
+    :param stats_df:
+    :param classifiers_df:
+    :param savename:
     """
     # deprecated, previous way to plot figure 2C.
     df = stats_df[["kl"]]
@@ -553,9 +554,9 @@ def create_scatterplot(stats_df, classifiers_df, savename):
 def plot_histograms_2c(stats_df, classifiers_df, savename):
     """
 
-    @param stats_df:
-    @param classifiers_df:
-    @param savename:
+    :param stats_df:
+    :param classifiers_df:
+    :param savename:
     """
     data = stats_df[["kl"]]
     data.loc[:, "klval"] = stats_df.kl.apply(logna)

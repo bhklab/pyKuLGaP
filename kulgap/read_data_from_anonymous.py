@@ -1,11 +1,11 @@
-import pandas as pd
-from . import pdxat
 import numpy as np
+import pandas as pd
+
+from . import pdxat
 
 
 def str_to_array(string):
     """
-
 
     :param string:
     :return:

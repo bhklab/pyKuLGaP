@@ -1,24 +1,22 @@
-import numpy as np
-from scipy.integrate import quad
-from scipy.stats import norm
 import itertools
-from collections import Counter
-
-# GPy deps
-from GPy.models import GPRegression
-from GPy.kern import RBF
-from GPy import plotting
-
 # Logging
 import logging
+from collections import Counter
 
-# plotting deps
+# plotting dependencies
 import matplotlib.pyplot as plt
+import numpy as np
 import statsmodels.api as sm
+# GPy dependencies
+from GPy import plotting
+from GPy.kern import RBF
+from GPy.models import GPRegression
+from scipy.integrate import quad
+from scipy.stats import norm
 
 # R in Python
-import rpy2.robjects as robjects
-import pandas.rpy.common as com
+## FIXME:: This import doesn't work, but com is referenced starting line 909
+# import pandas.rpy.common as com
 
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
@@ -134,7 +132,7 @@ class Category:
         Returns the index in the array of the location of the drug's
         start day, + or - 1.
 
-        @return:
+        :return:
         """
         start = None
         start_found = False
@@ -149,7 +147,7 @@ class Category:
         """
         Normalizes all growths using normalize_first_day_and_log_transform helper function.
 
-        @return:
+        :return:
         """
 
         # TODO: Need to normalize on treatment start_day
@@ -162,8 +160,8 @@ class Category:
         Normalize by dividing every y element-wise by the first day's median
         and then taking the log.
 
-        @param y:
-        @return:
+        :param y:
+        :return:
         """
 
         # if y.ndim == 1:
@@ -207,10 +205,10 @@ class Category:
         Fits a GP for both the control and case growth curves,
         H1 with time and treatment, and H0 with only time.
 
-        @param control: If None, then just fits one GP - else, fits 3 different GPs
+        :param control: If None, then just fits one GP - else, fits 3 different GPs
                         (one for case, two for gp_h0 and gp_h1)
-        @param num_restarts:
-        @return:
+        :param num_restarts:
+        :return:
         """
 
         logger.info("Fitting Gaussian processes for " + self.name)
@@ -253,10 +251,10 @@ class Category:
         Fits a GP for both the control and case growth curves,
         H1 with time and treatment, and H0 with only time.
 
-        @param control: If None, then just fits one GP - else, fits 3 different GPs
+        :param control: If None, then just fits one GP - else, fits 3 different GPs
                         (one for case, two for gp_h0 and gp_h1)
-        @param num_restarts:
-        @return:
+        :param num_restarts:
+        :return:
         """
 
         logger.info("Fitting Gaussian processes for " + self.name)
@@ -308,8 +306,8 @@ class Category:
         Calculates the KL divergence between the GPs fit for both the
         batched controls and batched cases.
 
-        @param control_category: The control Category object
-        @return:
+        :param control_category: The control Category object
+        :return:
         """
 
         logger.info("Calculating the KL Divergence for " + self.name)
@@ -317,8 +315,8 @@ class Category:
         def kl_integrand(t):
             """
 
-            @param t:
-            @return:
+            :param t:
+            :return:
             """
             mean_control, var_control = control.gp.predict(np.asarray([[t]]))
             mean_case, var_case = self.gp.predict(np.asarray([[t]]))
@@ -344,11 +342,11 @@ class Category:
     def __calculate_kl_divergence_just_gp_and_x(gp_control, gp_case, x, drug_start_day):
         """
 
-        @param gp_control:
-        @param gp_case:
-        @param x:
-        @param drug_start_day:
-        @return:
+        :param gp_control:
+        :param gp_case:
+        :param x:
+        :param drug_start_day:
+        :return:
         """
 
         ## FIXME:: Function is defined twice, define as a local helper or, if the function is used in other .py files
@@ -371,11 +369,11 @@ class Category:
         """
         Calculates the p value of the given KL divergence using empirical tests.
 
-        @param control:
-        @param output_path:
-        @param file_type:
-        @param histograms_pdf:
-        @param num_iterations:
+        :param control:
+        :param output_path:
+        :param file_type:
+        :param histograms_pdf:
+        :param num_iterations:
         """
         assert (control is not None)
 
@@ -430,8 +428,8 @@ class Category:
         """
         Creates all possible pseudo controls and pseudo cases, with a one-to-one relationship.
 
-        @param patient:
-        @return: all_pseudo_controls, all_pseudo_cases
+        :param patient:
+        :return: all_pseudo_controls, all_pseudo_cases
         """
 
         all_pseudo_controls, all_pseudo_cases = [], []
@@ -461,9 +459,9 @@ class Category:
 
         Returns the GP and kernel.
 
-        @param x: time
-        @param y_norm: log-normalized target
-        @return:
+        :param x: time
+        :param y_norm: log-normalized target
+        :return:
         """
 
         # control for number of measurements per replicate if time not same length
@@ -482,9 +480,9 @@ class Category:
         ## FIXME:: Documentation vs function parameter mismatch
         """
 
-        @param replicate_test_stats: array of all of the test statistics
-        @param observed_stat: The observed KL divergence for this category.
-        @return:
+        :param replicate_test_stats: array of all of the test statistics
+        :param observed_stat: The observed KL divergence for this category.
+        :return:
         """
 
         return (len([x for x in self.empirical_kl if x >= self.kl_divergence]) + 1) / (len(self.empirical_kl) + 1)
@@ -493,9 +491,9 @@ class Category:
     def __relativize(y, start):
         """
 
-        @param y:
-        @param start:
-        @return:
+        :param y:
+        :param start:
+        :return:
         """
         return y / y[start] - 1
 
@@ -503,9 +501,9 @@ class Category:
     def __centre(y, start):
         """
 
-        @param y:
-        @param start:
-        @return:
+        :param y:
+        :param start:
+        :return:
         """
         return y - y[start]
 
@@ -513,10 +511,10 @@ class Category:
     def __compute_response_angle(x, y, start):
         """
 
-        @param x:
-        @param y:
-        @param start:
-        @return:
+        :param x:
+        :param y:
+        :param start:
+        :return:
         """
         l = min(len(x), len(y))
         model = sm.OLS(y[start:l], x[start:l])
@@ -529,7 +527,7 @@ class Category:
         Builds the response angle dict.
 
 
-        @return
+        :return
         """
 
         start = self.find_start_date_index()
@@ -564,9 +562,9 @@ class Category:
         """
 
 
-        @param x:
-        @param y:
-        @return:
+        :param x:
+        :param y:
+        :return:
         """
         AUC = 0
         l = min(len(x), len(y))
@@ -578,7 +576,7 @@ class Category:
         """
         Builds the AUC (Area under the curve) with respect tot eh.
 
-        @return
+        :return
         """
         #
         self.auc_gp = self.__calculate_AUC(self.x, self.gp.predict(self.x)[0])
@@ -587,7 +585,7 @@ class Category:
         """
         Builds the AUC (Area under the curve) dict for y.
 
-        @return
+        :return
         """
         start = max(self.find_start_date_index(), control.measurement_start)
         end = min(self.measurement_end, control.measurement_end)
@@ -598,7 +596,7 @@ class Category:
         """
         Builds the AUC (Area under the curve) dict. for y_norm
 
-        @return
+        :return
         """
         start = max(self.find_start_date_index(), control.measurement_start)
         end = min(self.measurement_end, control.measurement_end)
@@ -615,7 +613,7 @@ class Category:
         - **mSD**: BestResponse < 35% AND BestAverageResponse < 30%
         - **mPD**: everything else
 
-        @return
+        :return
         """
         start = self.find_start_date_index()
         end = self.measurement_end
@@ -679,7 +677,7 @@ class Category:
         """
         Builds up the mrecist_counts attribute with number of each occurrence of mRECIST category.
 
-        @return:
+        :return:
         """
 
         if self.mrecist is None:
@@ -703,11 +701,11 @@ class Category:
         Janosch's credible interval function, for finding where the two GPs diverge.
 
 
-        @param threshold:
-        @param t2:
-        @param t1:
-        @param control:
-        @return:
+        :param threshold:
+        :param t2:
+        :param t1:
+        :param control:
+        :return:
         """
         if control is not None:
             mu = 0
@@ -735,8 +733,8 @@ class Category:
 
     def calculate_credible_intervals(self, control):
         """
-c       @param control: control Category object
-        @return:
+c       :param control: control Category object
+        :return:
         """
 
         logger.info("Calculating credible intervals for: " + self.name)
@@ -772,8 +770,8 @@ c       @param control: control Category object
         returns the values of the derivative at time
         points x to deal with some weird stuff about
 
-        @param gp:
-        @return:
+        :param gp:
+        :return:
         """
 
         if x.ndim == 1:

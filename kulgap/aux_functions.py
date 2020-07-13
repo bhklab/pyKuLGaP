@@ -1,17 +1,15 @@
 import numpy as np
 import pandas as pd
-
-from scipy.integrate import quad
-
 import statsmodels.api as sm
+from scipy.integrate import quad
 
 
 def p_value(l1, l2):
     """
 
-    @param l1:
-    @param l2:
-    @return:
+    :param l1:
+    :param l2:
+    :return:
     """
     # returns p-value for each x in l1, based on l2
     l = []
@@ -23,8 +21,8 @@ def p_value(l1, l2):
 def get_all_cats(all_patients):
     """
 
-    @param all_patients:
-    @return:
+    :param all_patients:
+    :return:
     """
     # returns a dictionary name:category
     d = {}
@@ -40,9 +38,9 @@ def get_all_cats(all_patients):
 def calculate_AUC(x, y):
     """
 
-    @param x:
-    @param y:
-    @return:
+    :param x:
+    :param y:
+    :return:
     """
     AUC = 0
     l = min(len(x), len(y))
@@ -54,9 +52,9 @@ def calculate_AUC(x, y):
 def kl_divergence(case, control):
     """
 
-    @param case:
-    @param control:
-    @return:
+    :param case:
+    :param control:
+    :return:
     """
 
     def kl_integrand(t):
@@ -78,8 +76,8 @@ def kl_divergence(case, control):
 def cross_kl_divergences(cat_list):
     """
 
-    @param cat_list:
-    @return:
+    :param cat_list:
+    :return:
     """
     # takes a list of categories and computes KL(x,y) for all x and y in the list
     kl_list = []
@@ -110,9 +108,9 @@ def cv_smoothing(l):
 
 def calculate_null_kl(category_list, filename=None):
     """
-    @param category_list: [list] The list of categories from which the null kl is to be calculated
-    @param filename: If None, calculate from category_list. Else read in from filename
-    @return: [list] the list of values and the smoothed object
+    :param category_list: [list] The list of categories from which the null kl is to be calculated
+    :param filename: If None, calculate from category_list. Else read in from filename
+    :return: [list] the list of values and the smoothed object
     """
     if filename is None:
         l = cross_kl_divergences(category_list)
