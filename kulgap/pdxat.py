@@ -1,34 +1,28 @@
-#import rpy2.robjects as robjects
-#import pandas.rpy.common as com
-
-# compute deps
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
+import itertools
+from collections import Counter
 
 # GPy deps
 from GPy.models import GPRegression
 from GPy.kern import RBF
 from GPy import plotting
 
-plotting.change_plotting_library('matplotlib')
-
 # Logging
 import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-import itertools
-from collections import Counter
-
 # plotting deps
 import matplotlib.pyplot as plt
-
-
 import statsmodels.api as sm
-    
 
+# R in Python
+import rpy2.robjects as robjects
+import pandas.rpy.common as com
+
+plotting.change_plotting_library('matplotlib')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class Category:
@@ -65,7 +59,7 @@ class Category:
         self.y = np.asarray(y.T).astype(float)
         self.y_norm = None
         self.drug_start_day = drug_start_day
-        
+
         self.start = None
         self.end = None
 
@@ -92,36 +86,34 @@ class Category:
 
         # {701: response angle, ...}
         self.response_angle = {}
-        self.response_angle_rel={}
-        
-        self.response_angle_control={}
-        self.response_angle_rel_control={}
-        
-        #response angles based on average of curves
-        self.average_angle=None
-        self.average_angle_rel=None
+        self.response_angle_rel = {}
+
+        self.response_angle_control = {}
+        self.response_angle_rel_control = {}
+
+        # response angles based on average of curves
+        self.average_angle = None
+        self.average_angle_rel = None
         self.average_angle_control = None
         self.average_angle_rel_control = None
-        
-        # {701: AUC, ...}
-        self.auc={}
-        self.auc_norm={}
-        
-        self.auc_gp=None
-        self.auc_gp_control = None
-        self.auc_control={ }
-        self.auc_control_norm = { }
-        
-        self.inverted = False
 
-        
+        # {701: AUC, ...}
+        self.auc = {}
+        self.auc_norm = {}
+
+        self.auc_gp = None
+        self.auc_gp_control = None
+        self.auc_control = {}
+        self.auc_control_norm = {}
+
+        self.inverted = False
 
         # credible intervals stats
         self.credible_intervals = []
         self.percent_credible_intervals = None
 
         self.rates_list = []
-        self.rates_list_control=[]
+        self.rates_list_control = []
 
         # Full Data is all of the data of the treatments and control
         self.full_data = []
@@ -133,7 +125,7 @@ class Category:
         self.gp_h1_kernel = None
 
         self.delta_log_likelihood_h0_h1 = None
-        
+
         self.tgi = None
 
     def find_start_date_index(self):
@@ -142,7 +134,7 @@ class Category:
         Returns the index in the array of the location of the drug's
         start day, + or - 1.
 
-        :return:
+        @return:
         """
         start = None
         start_found = False
@@ -157,7 +149,7 @@ class Category:
         """
         Normalizes all growths using normalize_first_day_and_log_transform helper function.
 
-        :return:
+        @return:
         """
 
         # TODO: Need to normalize on treatment start_day
@@ -170,8 +162,8 @@ class Category:
         Normalize by dividing every y element-wise by the first day's median
         and then taking the log.
 
-        :param y:
-        :return:
+        @param y:
+        @return:
         """
 
         # if y.ndim == 1:
@@ -200,17 +192,14 @@ class Category:
                 self.full_data.append([self.x[j][0], 1, y])
 
         self.full_data = np.asarray(self.full_data).astype(float)
-        
-        
-    def calculate_tgi(self,control):
-        def TGI(yt,yc,i,j):
-            #calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
-            return 1- (yt[j]-yt[i])/(yc[j]-yc[i])
-        
-        self.tgi = TGI(self.y_norm.mean(axis=0)[self.start:self.end+1],control.y_norm.mean(axis=0)[self.start:self.end+1], 0,self.end-self.start)
-        
-    
 
+    def calculate_tgi(self, control):
+        def TGI(yt, yc, i, j):
+            # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
+            return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
+
+        self.tgi = TGI(self.y_norm.mean(axis=0)[self.start:self.end + 1],
+                       control.y_norm.mean(axis=0)[self.start:self.end + 1], 0, self.end - self.start)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -218,9 +207,10 @@ class Category:
         Fits a GP for both the control and case growth curves,
         H1 with time and treatment, and H0 with only time.
 
-        :param control: If None, then just fits one GP - else, fits 3 different GPs
+        @param control: If None, then just fits one GP - else, fits 3 different GPs
                         (one for case, two for gp_h0 and gp_h1)
-        :return:
+        @param num_restarts:
+        @return:
         """
 
         logger.info("Fitting Gaussian processes for " + self.name)
@@ -233,26 +223,21 @@ class Category:
         print(self.name)
         print("Self.phlc_id:")
         print(self.phlc_id)
-        
+
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
-        
-        y_norm_trunc = self.y_norm[:,self.measurement_start:self.measurement_end]
+
+        y_norm_trunc = self.y_norm[:, self.measurement_start:self.measurement_end]
         x = np.tile(self.x[self.measurement_start:self.measurement_end], (len(self.replicates), 1))
         y = np.resize(y_norm_trunc, (y_norm_trunc.shape[0] * y_norm_trunc.shape[1], 1))
         self.gp = GPRegression(x, y, self.gp_kernel)
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
-           
-
-
         if control is not None:
             # kernels
-            
             self.gp_h0_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
             self.gp_h1_kernel = RBF(input_dim=2, variance=1., ARD=True)
 
             # GPs
-            
             self.gp_h0 = GPRegression(self.full_data[:, 0:1], self.full_data[:, 2:3], self.gp_h0_kernel)
             self.gp_h1 = GPRegression(self.full_data[:, 0:2], self.full_data[:, 2:3], self.gp_h1_kernel)
 
@@ -262,16 +247,16 @@ class Category:
 
             self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
-
     def fit_gaussian_processes_old(self, control=None, num_restarts=7):
         """
         This is the old version, which fits on the whole time interval
         Fits a GP for both the control and case growth curves,
         H1 with time and treatment, and H0 with only time.
 
-        :param control: If None, then just fits one GP - else, fits 3 different GPs
+        @param control: If None, then just fits one GP - else, fits 3 different GPs
                         (one for case, two for gp_h0 and gp_h1)
-        :return:
+        @param num_restarts:
+        @return:
         """
 
         logger.info("Fitting Gaussian processes for " + self.name)
@@ -284,16 +269,15 @@ class Category:
         print(self.name)
         print("Self.phlc_id:")
         print(self.phlc_id)
-            
 
-        if control == None: # if control hasn't been constructed yet
+        if control is None:  # if control hasn't been constructed yet
             self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
             x = np.tile(self.x[:obs_per_replicate], (len(self.replicates), 1))
             y = np.resize(self.y_norm, (self.y_norm.shape[0] * self.y_norm.shape[1], 1))
 
-            print(x.shape,y.shape)
-           
+            print(x.shape, y.shape)
+
             self.gp = GPRegression(x, y, self.gp_kernel)
             self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
@@ -316,46 +300,65 @@ class Category:
             self.gp_h0.optimize_restarts(num_restarts=num_restarts, messages=False)
             self.gp_h1.optimize_restarts(num_restarts=num_restarts, messages=False)
 
-            self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()            
+            self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
     def calculate_kl_divergence(self, control):
+        ## FIXME:: Mismatch between function parameters and documentation
         """
         Calculates the KL divergence between the GPs fit for both the
         batched controls and batched cases.
 
-        :param control_category: The control Category object
-        :return:
+        @param control_category: The control Category object
+        @return:
         """
 
         logger.info("Calculating the KL Divergence for " + self.name)
 
         def kl_integrand(t):
+            """
+
+            @param t:
+            @return:
+            """
             mean_control, var_control = control.gp.predict(np.asarray([[t]]))
             mean_case, var_case = self.gp.predict(np.asarray([[t]]))
 
-            return  ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) +  ((var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
+            return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
+                    (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-                
-        max_x_index = min(self.measurement_end,control.measurement_end)
+        max_x_index = min(self.measurement_end, control.measurement_end)
 
         if control.y.shape[1] > self.y.shape[1]:
-            self.kl_divergence = abs(1/(self.x[max_x_index] - self.drug_start_day)*quad(kl_integrand, self.drug_start_day, self.x[max_x_index],limit=100)[0])[0]
-#            abs(quad(kl_integrand, self.drug_start_day, self.x[max_x_index])[0]
-#                                     - max(self.x) / 2)[0]
+            self.kl_divergence = abs(1 / (self.x[max_x_index] - self.drug_start_day) *
+                                     quad(kl_integrand, self.drug_start_day, self.x[max_x_index], limit=100)[0])[0]
+        #            abs(quad(kl_integrand, self.drug_start_day, self.x[max_x_index])[0]
+        #                                     - max(self.x) / 2)[0]
         else:
-            self.kl_divergence = abs(1/(control.x[max_x_index] - self.drug_start_day)*quad(kl_integrand,self.drug_start_day , control.x[max_x_index],limit=100)[0])[0]
-#            abs(quad(kl_integrand, self.drug_start_day, control.x[max_x_index])[0]- max(control.x) / 2)[0]
+            self.kl_divergence = abs(1 / (control.x[max_x_index] - self.drug_start_day) *
+                                     quad(kl_integrand, self.drug_start_day, control.x[max_x_index], limit=100)[0])[0]
+        #            abs(quad(kl_integrand, self.drug_start_day, control.x[max_x_index])[0]- max(control.x) / 2)[0]
 
         logger.info(self.kl_divergence)
 
     @staticmethod
     def __calculate_kl_divergence_just_gp_and_x(gp_control, gp_case, x, drug_start_day):
+        """
 
+        @param gp_control:
+        @param gp_case:
+        @param x:
+        @param drug_start_day:
+        @return:
+        """
+
+        ## FIXME:: Function is defined twice, define as a local helper or, if the function is used in other .py files
+        ##     add the function to aux_functions
         def kl_integrand(t):
             mean_control, var_control = gp_control.predict(np.asarray([[t]]))
             mean_case, var_case = gp_case.predict(np.asarray([[t]]))
 
-            return  ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) +  ((var_case + (mean_case - mean_control) ** 2) / (2 * var_control))-1
+            return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
+                    (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
         kl_divergence = abs(quad(kl_integrand, drug_start_day, max(x))[0]
                             - max(x) / 2)[0]
@@ -368,11 +371,13 @@ class Category:
         """
         Calculates the p value of the given KL divergence using empirical tests.
 
-        :param control:
-        :return:
+        @param control:
+        @param output_path:
+        @param file_type:
+        @param histograms_pdf:
+        @param num_iterations:
         """
-
-        assert(control is not None)
+        assert (control is not None)
 
         all_pseudo_controls, all_pseudo_cases = self.__randomize_controls_cases_procedural(control)
         num_cases = str(len(all_pseudo_cases))
@@ -399,9 +404,9 @@ class Category:
             gp_control, kernel_control = self.__fit_single_gaussian_process(control_x, i)
             gp_case, kernel_case = self.__fit_single_gaussian_process(case_x, j)
             self.empirical_kl.append((self.__calculate_kl_divergence_just_gp_and_x(gp_control,
-                                                                              gp_case,
-                                                                              case_x,
-                                                                              self.drug_start_day)))
+                                                                                   gp_case,
+                                                                                   case_x,
+                                                                                   self.drug_start_day)))
 
         self.kl_p_value = self.__calculate_p_value()
 
@@ -421,11 +426,12 @@ class Category:
             plt.close(fig)
 
     def __randomize_controls_cases_procedural(self, control):
+        ## FIXME:: Mismatch between function parameters and documentation
         """
         Creates all possible pseudo controls and pseudo cases, with a one-to-one relationship.
 
-        :param patient
-        :return all_pseudo_controls, all_pseudo_cases
+        @param patient:
+        @return: all_pseudo_controls, all_pseudo_cases
         """
 
         all_pseudo_controls, all_pseudo_cases = [], []
@@ -455,8 +461,9 @@ class Category:
 
         Returns the GP and kernel.
 
-        :param x: time
-        :param y_norm: log-normalized target
+        @param x: time
+        @param y_norm: log-normalized target
+        @return:
         """
 
         # control for number of measurements per replicate if time not same length
@@ -472,109 +479,133 @@ class Category:
         return gp, kernel
 
     def __calculate_p_value(self):
+        ## FIXME:: Documentation vs function parameter mismatch
         """
 
-        :param replicate_test_stats: array of all of the test statistics
-        :param observed_stat: The observed KL divergence for this category.
-        :return:
+        @param replicate_test_stats: array of all of the test statistics
+        @param observed_stat: The observed KL divergence for this category.
+        @return:
         """
 
         return (len([x for x in self.empirical_kl if x >= self.kl_divergence]) + 1) / (len(self.empirical_kl) + 1)
 
-
     @staticmethod
     def __relativize(y, start):
-        return y/y[start]-1
-    
-    @staticmethod
-    def __centre(y,start):
-        return y-y[start]
-    
+        """
+
+        @param y:
+        @param start:
+        @return:
+        """
+        return y / y[start] - 1
 
     @staticmethod
-    def __compute_response_angle(x,y, start):
-        l=min(len(x),len(y))
-        model = sm.OLS(y[start:l],x[start:l])
+    def __centre(y, start):
+        """
+
+        @param y:
+        @param start:
+        @return:
+        """
+        return y - y[start]
+
+    @staticmethod
+    def __compute_response_angle(x, y, start):
+        """
+
+        @param x:
+        @param y:
+        @param start:
+        @return:
+        """
+        l = min(len(x), len(y))
+        model = sm.OLS(y[start:l], x[start:l])
         results = model.fit()
         return np.arctan(results.params[0])
 
-
     def calculate_response_angles(self, control):
-        
+
         """
         Builds the response angle dict.
 
 
-        :return
+        @return
         """
 
-  
-        start = self.find_start_date_index()     
+        start = self.find_start_date_index()
         for i in range(len(self.replicates)):
-            
+
             if start == None:
                 raise
             else:
-                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),self.__centre(self.y[i],start),start)
-                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),self.__relativize(self.y[i],start),start)                
+                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),
+                                                                                        self.__centre(self.y[i], start),
+                                                                                        start)
+                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),
+                                                                                            self.__relativize(self.y[i],
+                                                                                                              start),
+                                                                                            start)
 
-#                np.arctan((self.y[i][-1] - self.y[i][start]) / (self.x.ravel()[len(self.y[i])-1] - self.drug_start_day) )
-        self.average_angle = self.__compute_response_angle(self.x.ravel(),self.__centre(np.nanmean(self.y,axis=0),start),start)
-        self.average_angle_rel = self.__compute_response_angle(self.x.ravel(),self.__relativize(np.nanmean(self.y,axis=0),start),start)
-        self.average_angle_control = self.__compute_response_angle(control.x.ravel(), self.__centre(np.nanmean(control.y,axis=0),start), start)
-        self.average_angle_rel_control = self.__compute_response_angle(control.x.ravel(),self.__relativize(np.nanmean(control.y,axis=0), start),start)
+            #                np.arctan((self.y[i][-1] - self.y[i][start]) / (self.x.ravel()[len(self.y[i])-1] - self.drug_start_day) )
+        self.average_angle = self.__compute_response_angle(self.x.ravel(),
+                                                           self.__centre(np.nanmean(self.y, axis=0), start), start)
+        self.average_angle_rel = self.__compute_response_angle(self.x.ravel(),
+                                                               self.__relativize(np.nanmean(self.y, axis=0), start),
+                                                               start)
+        self.average_angle_control = self.__compute_response_angle(control.x.ravel(),
+                                                                   self.__centre(np.nanmean(control.y, axis=0), start),
+                                                                   start)
+        self.average_angle_rel_control = self.__compute_response_angle(control.x.ravel(),
+                                                                       self.__relativize(np.nanmean(control.y, axis=0),
+                                                                                         start), start)
 
-
-        
     @staticmethod
-    def __calculate_AUC(x,y):
+    def __calculate_AUC(x, y):
+        """
+
+
+        @param x:
+        @param y:
+        @return:
+        """
         AUC = 0
-        l = min(len(x),len(y))
-        for j in range(l-1):
-            AUC+=(y[j+1]-y[j])/(x[j+1]-x[j])
+        l = min(len(x), len(y))
+        for j in range(l - 1):
+            AUC += (y[j + 1] - y[j]) / (x[j + 1] - x[j])
         return AUC
-               
+
     def calculate_gp_auc(self):
         """
         Builds the AUC (Area under the curve) with respect tot eh.
 
-        :return
+        @return
         """
-#       
-        self.auc_gp=self.__calculate_AUC(self.x,self.gp.predict(self.x)[0] ) 
+        #
+        self.auc_gp = self.__calculate_AUC(self.x, self.gp.predict(self.x)[0])
 
-        
-
-    def calculate_auc(self,control):
+    def calculate_auc(self, control):
         """
         Builds the AUC (Area under the curve) dict for y.
 
-        :return
+        @return
         """
-        start = max(self.find_start_date_index(),control.measurement_start)
-        end = min(self.measurement_end,control.measurement_end)
+        start = max(self.find_start_date_index(), control.measurement_start)
+        end = min(self.measurement_end, control.measurement_end)
         for i in range(len(self.replicates)):
-            self.auc[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end],self.y[i,start:end])
+            self.auc[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end], self.y[i, start:end])
 
-
-
-    def calculate_auc_norm(self,control):
+    def calculate_auc_norm(self, control):
         """
         Builds the AUC (Area under the curve) dict. for y_norm
 
-        :return
+        @return
         """
-        start = max(self.find_start_date_index(),control.measurement_start)
-        end = min(self.measurement_end,control.measurement_end)
+        start = max(self.find_start_date_index(), control.measurement_start)
+        end = min(self.measurement_end, control.measurement_end)
         for i in range(len(self.replicates)):
-            
-            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end],self.y_norm[i,start:end])
+            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end],
+                                                                     self.y_norm[i, start:end])
 
-          
-
-                  
-                  
-        
     def calculate_mrecist(self):
         """
         Builds the mRECIST dict.
@@ -584,28 +615,27 @@ class Category:
         - **mSD**: BestResponse < 35% AND BestAverageResponse < 30%
         - **mPD**: everything else
 
-        :return
+        @return
         """
         start = self.find_start_date_index()
-        end=self.measurement_end
+        end = self.measurement_end
         for i in range(len(self.replicates)):
-            #days_volume = zip(self.x.ravel(), self.y[i])
-            
-        
-            if start == None:
+            # days_volume = zip(self.x.ravel(), self.y[i])
+
+            if start is None:
                 raise
             else:
                 initial_volume = self.y[i][start]
-                
+
                 # array of all responses for t >= 3
                 responses = []
                 average_responses = []
-        
-                for day, volume in zip(self.x.ravel(),self.y[i]):
-                    if (day-self.drug_start_day >=3) and (day<=self.x[end]):
+
+                for day, volume in zip(self.x.ravel(), self.y[i]):
+                    if (day - self.drug_start_day >= 3) and (day <= self.x[end]):
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
-                
+
                 if min(responses) < -95 and min(average_responses) < -40:
                     self.mrecist[self.replicates[i]] = 'mCR'
                 elif min(responses) < -50 and min(average_responses) < -20:
@@ -615,14 +645,11 @@ class Category:
                 else:
                     self.mrecist[self.replicates[i]] = 'mPD'
 
-
-
-
         for i in range(len(self.replicates)):
             days_volume = zip(self.x.ravel(), self.y[i])
             start = self.find_start_date_index()
 
-            if start == None:
+            if start is None:
                 raise
             else:
                 initial_volume = self.y[i][start]
@@ -652,7 +679,7 @@ class Category:
         """
         Builds up the mrecist_counts attribute with number of each occurrence of mRECIST category.
 
-        :return:
+        @return:
         """
 
         if self.mrecist is None:
@@ -675,14 +702,13 @@ class Category:
         """
         Janosch's credible interval function, for finding where the two GPs diverge.
 
-        :param case:
-        :param control:
-        :param threshold:
-        :param t2:
-        :param t1:
-        :return:
-        """
 
+        @param threshold:
+        @param t2:
+        @param t1:
+        @param control:
+        @return:
+        """
         if control is not None:
             mu = 0
             sigma = 1
@@ -709,8 +735,8 @@ class Category:
 
     def calculate_credible_intervals(self, control):
         """
-c        :param control: control Category object
-        :return:
+c       @param control: control Category object
+        @return:
         """
 
         logger.info("Calculating credible intervals for: " + self.name)
@@ -746,8 +772,8 @@ c        :param control: control Category object
         returns the values of the derivative at time
         points x to deal with some weird stuff about
 
-        :param gp:
-        :return:
+        @param gp:
+        @return:
         """
 
         if x.ndim == 1:
@@ -759,20 +785,21 @@ c        :param control: control Category object
                 x]
         return mu, mult * cov
 
-    def compute_all_gp_derivatives(self,control):
+    def compute_all_gp_derivatives(self, control):
         """
 
         :return:
         """
 
-        logger.info("Calculating the GP derivatives for: " + self.name+' and control')
+        logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
         for x in self.x:
             self.rates_list.append(self.__gp_derivative(x, self.gp)[0])
         for x in control.x:
-            self.rates_list_control.append(self.__gp_derivative(x,control.gp)[0])
+            self.rates_list_control.append(self.__gp_derivative(x, control.gp)[0])
         self.rates_list = np.ravel(self.rates_list)
-        self.rates_list_control = np.ravel(self.rates_list_control) 
-        logger.info("Done calcluating GP derivatives for: " + self.name+' and control')
+        self.rates_list_control = np.ravel(self.rates_list_control)
+        logger.info("Done calcluating GP derivatives for: " + self.name + ' and control')
+
     def plot_with_control(self, control=None, output_path=None, show_kl_divergence=True, show_legend=True,
                           file_type=None, output_pdf=None):
         """
@@ -781,7 +808,7 @@ c        :param control: control Category object
 
 
         :param control: The control Category object
-        :param output: output filepath - if not specified, doesn't save
+        :param output_path: output filepath - if not specified, doesn't save
         :param show_kl_divergence: flag for displaying calculated kl_divergence
         :param show_legend: flag for displaying legend
         :param file_type: can be 'svg' or 'pdf', defaults to 'pdf'.
@@ -852,12 +879,11 @@ c        :param control: control Category object
 
 
 class Patient:
-
     """
     The patient represents where the cancer sample comes from.
     """
 
-    def __init__(self, name, phlc_sample=None, tumour_type = None,
+    def __init__(self, name, phlc_sample=None, tumour_type=None,
                  start_date=None, drug_start_day=None,
                  end_date=None, is_rdata=False):
         """
@@ -871,14 +897,14 @@ class Patient:
         :param is_rdata: if legacy
         """
 
-        self.name = name # also phlc_id
+        self.name = name  # also phlc_id
         self.categories = {}
 
         self.phlc_sample = phlc_sample
         self.start_date = start_date
         self.drug_start_day = drug_start_day
         self.end_date = end_date
-        
+
         self.tumour_type = tumour_type
 
         # TODO: Should move this to category
@@ -908,5 +934,3 @@ class Patient:
                 "end date: %s\n"
                 % (self.name, [key for key in self.categories], self.phlc_sample,
                    self.start_date, self.drug_start_day, self.end_date))
-
-

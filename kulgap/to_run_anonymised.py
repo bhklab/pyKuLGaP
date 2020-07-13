@@ -1,50 +1,25 @@
-    # -*- coding: utf-8 -*-
-"""
-Created on Wed May 24 15:03:17 2017
-
-@author: ortmann_j
-"""
-
-# TODO: Check which of the imports can be removed
-import pandas as pd
-import numpy as np
-import pdxat
-import statsmodels.api  as sm
+import gc
 from collections import defaultdict
 
+import numpy as np
+import pandas as pd
+import statsmodels.api  as sm
 
-
-
-
-
-
-
-from allplot import plot_everything, create_and_plot_agreements, create_and_plot_conservative,\
-    get_classification_df,get_classification_df_from_df,  plot_category, plot_gp, plot_histogram,\
+from .allplot import plot_everything, create_and_plot_agreements, get_classification_df, get_classification_df_from_df, \
+    plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-
-import gc
-from read_data_from_anonymous import read_anonymised
-
-from aux_functions import get_all_cats, calculate_AUC, kl_divergence, calculate_null_kl
-
-#from read_in import read_in_patients
-
-    
-
-
-
-    
-    
-
-
-
+from .aux_functions import get_all_cats, calculate_AUC, calculate_null_kl
+from .read_data_from_anonymous import read_anonymised
 
     
 def remove_extremal_nas(y,replacement_value):
     """
     Replaces leading and trailing n/a values in the rows of y by replacement_value
     Returns the modified y, the start (first measurement) and the end (last measurement) dates
+
+    :param y:
+    :param replacement_value:
+    :return:
     """
     firsts=[]
     lasts=[]
@@ -63,6 +38,9 @@ def remove_extremal_nas(y,replacement_value):
 def forward_fill_nas(arr):
     """
     forward-fills n/a values in numpy array arr: replaces it by previous valid choice
+
+    :param arr:
+    :return:
     """
     mask = np.isnan(arr)
     idx = np.where(~mask,np.arange(mask.shape[1]),0)
@@ -72,26 +50,48 @@ def forward_fill_nas(arr):
     
     
 def relativize(y, start):
+    """
+
+    :param y:
+    :param start:
+    :return:
+    """
     return y/y[start]-1
 
 
 def centre(y,start):
+    """
+
+    :param y:
+    :param start:
+    :return:
+    """
     return y-y[start]
     
 
 
-def compute_response_angle(x,y, start):
+def compute_response_angle(x, y, start):
+    """
+
+    :param x:
+    :param y:
+    :param start:
+    :return:
+    """
     l=min(len(x),len(y))
     model = sm.OLS(y[start:l],x[start:l])
     results = model.fit()
-    return np.arctan(results.params[0])    
+    return np.arctan(results.params[0])
+    
 
-    
-    #return np.arctan((y[l-1] - y[start]) / (x[l-1] - x[start]) )
-    
-    
+## FIXME:: No one letter parameter names, very un-Pythonic
 def dict_to_string(d):
-    return "_".join([str(key)+":"+str(value) for key,value in d.items()])
+    """
+
+    :param d:
+    :return:
+    """
+    return "_".join([str(key) +":" + str(value) for key, value in d.items()])
 
 
 
@@ -335,8 +335,8 @@ if __name__ == '__main__':
                         for i in range(len(control.replicates)):
                             #cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(control.x.ravel(),control.y[i],control.find_start_date_index())
                             start = control.find_start_date_index() - control.measurement_start
-                            if start == None:
-                                raise
+                            if start is None:
+                                raise TypeError("The 'start' parameter is None")
                             else:
                                 cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(control.x_cut.ravel(),centre(control.y[i,control.measurement_start:control.measurement_end+1],start),start)
                                 cur_case.response_angle_rel_control[control.replicates[i]] = compute_response_angle(control.x_cut.ravel(),relativize(control.y[i,control.measurement_start:control.measurement_end+1],start),start) 
@@ -578,7 +578,7 @@ if __name__ == '__main__':
 
     classifiers_df = classifiers_df_ours.append(classifiers_df_crown)
     
-    classifiers_df.drop(["mRECIST-ours","KuLGaP-prev"],axis=1,inplace=True)
+    classifiers_df.drop(["mRECIST-ours","kulgap-prev"],axis=1,inplace=True)
     
     
     
@@ -707,7 +707,6 @@ if __name__ == '__main__':
     
     
     l = ["P11*C1","P40*C1","P34*C2","P48*C1","P5*C1","P28*C1","P3*C1","P11*C3","P60*C3","P2*C1"]
-    q
     figure_classifiers =   classifiers_df.loc[l,:]
     c = ["Figure 3","Figure 4AB","Figure 4CD","Figure 5AB","Figure 5CD"]
     c+= ["Supplementary Figure {}".format(i) for i in [1,2,3,5,6]]

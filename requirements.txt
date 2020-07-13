@@ -1,0 +1,10 @@
+numpy~=1.19.0
+matplotlib~=3.2.2
+pandas~=1.0.5
+setuptools~=47.1.1
+scipy~=1.5.1
+seaborn~=0.10.1
+statsmodels~=0.11.1
+gpy~=1.9.9
+sklearn~=0.0
+scikit-learn~=0.23.1
