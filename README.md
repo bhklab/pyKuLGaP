@@ -1,1 +1,1 @@
-# KL-paper
+# pyKuLGaP
