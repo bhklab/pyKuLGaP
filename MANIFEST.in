@@ -1,1 +1,9 @@
-results/*
+include LICENSE
+include README.md
+
+recursive-include KuLGaP *
+recursive-include data *
+global-include *.py
+
+exclude .gitignore
+rescursive-exclude dist *
