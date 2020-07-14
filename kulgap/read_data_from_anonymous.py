@@ -25,7 +25,7 @@ def read_anonymised(filename):
         df_pat = df[df.patient == pname]
         new_patient = pdxat.Patient(pname, tumour_type="no_tumour_type",
                                     start_date=None, drug_start_day=df_pat.drug_start_day.iloc[0],
-                                    end_date=None, is_rdata=False)
+                                    end_date=None)
 
         for cname in df_pat.category.unique():
             df_cat = df_pat[df_pat.category == cname]

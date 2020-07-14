@@ -250,61 +250,6 @@ class Category:
             self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
 
-    #TODO: to be removed
-    # def fit_gaussian_processes_old(self, control=None, num_restarts=7):
-    #     """
-    #     This is the old version, which fits on the whole time interval
-    #     Fits a GP for both the control and case growth curves,
-    #     H1 with time and treatment, and H0 with only time.
-
-    #     :param control: If None, then just fits one GP - else, fits 3 different GPs
-    #                     (one for case, two for gp_h0 and gp_h1)
-    #     :param num_restarts:
-    #     :return:
-    #     """
-
-    #     logger.info("Fitting Gaussian processes for " + self.name)
-
-    #     # control for number of measurements per replicate if time not same length
-    #     # self.y_norm.shape[0] is num replicates, [1] is num measurements
-    #     obs_per_replicate = self.y_norm.shape[1]
-    #     print("Now attempting to fit:")
-    #     print("self.name:")
-    #     print(self.name)
-    #     print("Self.phlc_id:")
-    #     print(self.phlc_id)
-
-    #     if control is None:  # if control hasn't been constructed yet
-    #         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
-
-    #         x = np.tile(self.x[:obs_per_replicate], (len(self.replicates), 1))
-    #         y = np.resize(self.y_norm, (self.y_norm.shape[0] * self.y_norm.shape[1], 1))
-
-    #         print(x.shape, y.shape)
-
-    #         self.gp = GPRegression(x, y, self.gp_kernel)
-    #         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
-
-    #     else:
-    #         # kernels
-    #         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
-    #         self.gp_h0_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
-    #         self.gp_h1_kernel = RBF(input_dim=2, variance=1., ARD=True)
-
-    #         x = np.tile(self.x[:obs_per_replicate], (len(self.replicates), 1))
-    #         y = np.resize(self.y_norm, (self.y_norm.shape[0] * self.y_norm.shape[1], 1))
-
-    #         # GPs
-    #         self.gp = GPRegression(X=x, Y=y, kernel=self.gp_kernel)
-    #         self.gp_h0 = GPRegression(self.full_data[:, 0:1], self.full_data[:, 2:3], self.gp_h0_kernel)
-    #         self.gp_h1 = GPRegression(self.full_data[:, 0:2], self.full_data[:, 2:3], self.gp_h1_kernel)
-
-    #         # optimize GPs
-    #         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
-    #         self.gp_h0.optimize_restarts(num_restarts=num_restarts, messages=False)
-    #         self.gp_h1.optimize_restarts(num_restarts=num_restarts, messages=False)
-
-    #         self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
     def calculate_kl_divergence(self, control):
         """
@@ -343,122 +288,7 @@ class Category:
 
         logger.info(self.kl_divergence)
 
-    #TODO: Check whether this is needed anywher other than in calculate_kl_divergence_p_value
-        #If not -  delete!
-    # @staticmethod
-    # def __calculate_kl_divergence_just_gp_and_x(gp_control, gp_case, x, drug_start_day):
-    #     """
 
-    #     :param gp_control:
-    #     :param gp_case:
-    #     :param x:
-    #     :param drug_start_day:
-    #     :return:
-    #     """
-
-    #     ## FIXME:: Function is defined twice, define as a local helper or, if the function is used in other .py files
-    #     ##     add the function to aux_functions
-    #     def kl_integrand(t):
-    #         mean_control, var_control = gp_control.predict(np.asarray([[t]]))
-    #         mean_case, var_case = gp_case.predict(np.asarray([[t]]))
-
-    #         return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
-    #                 (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
-
-    #     kl_divergence = abs(quad(kl_integrand, drug_start_day, max(x))[0]
-    #                         - max(x) / 2)[0]
-
-    #     return kl_divergence
-
-    # TODO: Probably best to move functions like these to the Patient class
-    # TODO: actually, I think this is an old version of calculating the p-values - to be deleted?
-    # def calculate_kl_divergence_p_value(self, control, output_path=None, file_type='pdf',
-    #                                     histograms_pdf=None, num_iterations=150):
-    #     """
-    #     Calculates the p value of the given KL divergence using empirical tests.
-
-    #     :param control:
-    #     :param output_path:
-    #     :param file_type:
-    #     :param histograms_pdf:
-    #     :param num_iterations:
-    #     """
-    #     assert (control is not None)
-
-    #     all_pseudo_controls, all_pseudo_cases = self.__randomize_controls_cases_procedural(control)
-    #     num_cases = str(len(all_pseudo_cases))
-    #     logger.info("There were " + num_cases + " pseudo cases.")
-
-    #     self.empirical_kl = []
-
-    #     counter = 0
-    #     for pseudo_controls, pseudo_cases in zip(all_pseudo_controls, all_pseudo_cases):
-    #         print(self.phlc_id)
-    #         print(str(counter) + " out of " + num_cases)
-    #         counter += 1
-
-    #         i = np.stack(pseudo_controls)
-    #         j = np.stack(pseudo_cases)
-
-    #         # clean up zeros
-    #         i[i == 0] = 0.00000000001
-    #         j[j == 0] = 0.00000000001
-
-    #         control_x = control.x[:len(i.T)]
-    #         case_x = self.x[:len(i.T)]
-
-    #         gp_control, kernel_control = self.__fit_single_gaussian_process(control_x, i)
-    #         gp_case, kernel_case = self.__fit_single_gaussian_process(case_x, j)
-    #         self.empirical_kl.append((self.__calculate_kl_divergence_just_gp_and_x(gp_control,
-    #                                                                                gp_case,
-    #                                                                                case_x,
-    #                                                                                self.drug_start_day)))
-
-    #     self.kl_p_value = self.__calculate_p_value()
-
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.hist(sorted(self.empirical_kl), bins=100)
-    #     ax.set_title("KL p-value for \n" + str(self.phlc_id) + " with " + str(self.name))
-    #     ax.set_xlabel("KL Value")
-    #     ax.set_ylabel("Frequency")
-    #     ax.annotate(str(self.kl_divergence) + " " + str(self.kl_p_value), xy=(1, 1))
-
-    #     if file_type == 'pdf':
-    #         histograms_pdf.savefig(fig)
-    #         plt.close(fig)
-    #     elif file_type == 'svg':
-    #         plt.savefig(output_path, format="svg")
-    #         plt.close(fig)
-    #TODO check whether this can be deleted
-    # def __randomize_controls_cases_procedural(self, control):
-    #     ## FIXME:: Mismatch between function parameters and documentation
-    #     """
-    #     Creates all possible pseudo controls and pseudo cases, with a one-to-one relationship.
-
-    #     :param patient:
-    #     :return: all_pseudo_controls, all_pseudo_cases
-    #     """
-
-    #     all_pseudo_controls, all_pseudo_cases = [], []
-
-    #     min_time_length = min(len(control.y.T), len(self.y.T))
-
-    #     case_y_norm = self.y_norm[:, :min_time_length]
-    #     control_y_norm = control.y_norm[:, :min_time_length]
-
-    #     all_y_norm = np.append(case_y_norm, control_y_norm, axis=0)
-
-    #     total_replicates = len(self.replicates) + len(control.replicates)
-
-    #     for pattern in itertools.product([True, False], repeat=len(all_y_norm)):
-    #         all_pseudo_controls.append([x[1] for x in zip(pattern, all_y_norm) if x[0]])
-    #         all_pseudo_cases.append([x[1] for x in zip(pattern, all_y_norm) if not x[0]])
-
-    #     all_pseudo_controls = [x for x in all_pseudo_controls if int(len(control.replicates)) == len(x)]
-    #     all_pseudo_cases = [x for x in all_pseudo_cases if int(len(self.replicates)) == len(x)]
-
-    #     return all_pseudo_controls, all_pseudo_cases
 
     @staticmethod
     def __fit_single_gaussian_process(x, y_norm, num_restarts=7):
@@ -474,8 +304,6 @@ class Category:
             - the kernel
         """
 
-        # control for number of measurements per replicate if time not same length
-        # self.y_norm.shape[0] is num replicates, [1] is num measurements
         obs_per_replicate = y_norm.shape[1]
 
         kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
@@ -487,14 +315,6 @@ class Category:
         return gp, kernel
 
     
-    #TODO: Next function to be removed
-    # def __calculate_p_value(self):
-    #     ## FIXME:: Documentation vs function parameter mismatch
-    #     """
-    #     :return:
-    #     """
-
-    #     return (len([x for x in self.empirical_kl if x >= self.kl_divergence]) + 1) / (len(self.empirical_kl) + 1)
 
     @staticmethod
     def __relativize(y, start):
@@ -876,17 +696,18 @@ c       :param control: control Category object
 
         :return [string] The representation:
         """
+        
         return ("\nName: %s\n"
                 "drug_start_day: %s\n"
-                "phlc_id: %s\n",
-                "replicates: %s\n"
+                "phlc_id: %s\n"
+                # "replicates: %s\n"
                 "kl_divergence: %s\n"
                 "kl_p_value: %s\n"
                 "mrecist: %s\n"
                 "percent_credible_intervals: %s\n"
                 "rates_list: %s \n"
-                % (self.name, str(self.drug_start_day), self.phlc_id, [r for r in self.replicates], self.kl_divergence,
-                   self.kl_p_value, self.mrecist, self.percent_credible_intervals, self.rates_list))
+                % (self.name, str(self.drug_start_day), self.phlc_id,# [r for r in self.replicates], 
+                   self.kl_divergence, self.kl_p_value, self.mrecist, self.percent_credible_intervals, self.rates_list))
 
 
 class Patient:
