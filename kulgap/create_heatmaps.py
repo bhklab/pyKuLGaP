@@ -75,8 +75,11 @@ def create_FDR(responders_df):
     FDR_df = pd.DataFrame(np.zeros((n, n)))
     for row in range(n):
         for col in range(n):
-            FDR_df.iloc[row, col] = responders_df[(responders_df.iloc[:, row] == -1) & (responders_df.iloc[:, col] == 1)].shape[0] / \
+            if responders_df[responders_df.iloc[:, col] == 1].shape[0]!=0:
+                FDR_df.iloc[row, col] = responders_df[(responders_df.iloc[:, row] == -1) & (responders_df.iloc[:, col] == 1)].shape[0] / \
                                     responders_df[responders_df.iloc[:, col] == 1].shape[0]
+            else:
+                FDR_df.iloc[row, col] =np.nan
 
     FDR_df = FDR_df.T  # transpose
     FDR_df.columns = responders_df.columns
@@ -90,7 +93,7 @@ def create_KT(responders_df):
     :param responders_df: [DataFrame] The dataframe of responders: one column per measure, one row per experiment
     :return [DataFrame]: The matrix of Kendall tau results
     """
-    kts_df = pd.DataFrame([[stats.kendalltau(ag_df[x], ag_df[y])[0] for x in ag_df.columns] for y in ag_df.columns])
-    kts_df.columns = ag_df.columns
-    kts_df.index = ag_df.columns
+    kts_df = pd.DataFrame([[stats.kendalltau(responders_df[x], responders_df[y])[0] for x in responders_df.columns] for y in responders_df.columns])
+    kts_df.columns = responders_df.columns
+    kts_df.index = responders_df.columns
     return kts_df

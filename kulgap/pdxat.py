@@ -14,6 +14,8 @@ from GPy.models import GPRegression
 from scipy.integrate import quad
 from scipy.stats import norm
 
+from .aux_functions import calculate_AUC, compute_response_angle, relativize, centre
+
 
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
@@ -758,3 +760,157 @@ class Patient:
                 "end date: %s\n"
                 % (self.name, [key for key in self.categories], self.phlc_sample,
                    self.start_date, self.drug_start_day, self.end_date))
+    
+    
+    def normalize_all_categories(self):
+        """
+        Normalizes data for each Category in the Patient object and calculates the start and end
+        parameters.
+        Note: this requires the presence of a control!
+        :return: [None]
+        """
+        control = self.categories["Control"]
+        for category_name,category in self.categories.items():
+            category.normalize_data()
+            if category_name != "Control":
+                category.start = max(category.find_start_date_index(), control.measurement_start)
+                category.end = min(control.measurement_end, category.measurement_end)
+                category.create_full_data(control)
+                assert (category.full_data != [])
+            
+    
+    def fit_all_gps(self):
+        """
+        Fits GPs to all Categories in the Patient object
+        :return: [None]
+        """
+        control=self.categories["Control"]
+        control.fit_gaussian_processes()
+        for category_name,category in self.categories.items():
+            if category_name != "Control":
+                category.fit_gaussian_processes(control=control)
+                category.calculate_kl_divergence(control)
+                
+                
+    
+        
+    
+    def compute_other_measures(self,fit_gp,report_name=None):
+        """
+        Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control Categories of the Patient
+        :fit_gp: whether a GP has been fit.
+        :param report_name: Filename under which the error report will be saved
+        :return: [None]
+        """
+
+        failed_mrecist = []
+        failed_response_angle = []
+        failed_AUC = []
+        failed_tgi = []
+        
+        
+        control = self.categories["Control"]
+        for category_name,category in self.categories.items():
+            if category_name != "Control":
+                # MRECIST
+                try:
+                    category.calculate_mrecist()
+                    assert (category.mrecist is not None)
+                except ValueError as e:
+                    failed_mrecist.append((category.phlc_id, e))
+                    print(e)
+                    continue
+                
+                
+                # angle
+                try:
+                    category.calculate_response_angles(control)
+                    assert (category.response_angle is not None)
+                    category.response_angle_control = {}
+                    for i in range(len(control.replicates)):
+                        
+                        start = control.find_start_date_index() - control.measurement_start
+                        if start is None:
+                            raise TypeError("The 'start' parameter is None")
+                        else:
+                            category.response_angle_control[control.replicates[i]] = compute_response_angle(
+                                control.x_cut.ravel(),
+                                centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
+                                start)
+                            category.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
+                                control.x_cut.ravel(),
+                                relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
+                                           start), start)
+    
+                except ValueError as e:
+                    failed_response_angle.append((category.phlc_id, e))
+                    print(e)
+                    continue
+                
+                
+                # compute AUC
+                try:
+                    category.calculate_auc(control)
+                    category.calculate_auc_norm(control)
+                    if fit_gp:
+                        category.calculate_gp_auc()
+                        category.auc_gp_control = calculate_AUC(control.x_cut, control.gp.predict(control.x_cut)[0])
+                    category.auc_control = {}
+                    start = max(category.find_start_date_index(), control.measurement_start)
+                    end = min(category.measurement_end, control.measurement_end)
+                    for i in range(len(control.replicates)):
+                        category.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
+                                                                                    control.y[i, start:end])
+                        category.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
+                                                                                         control.y_norm[i,
+                                                                                         start:end])
+                except ValueError as e:
+                    failed_AUC.append((category.phlc_id, e))
+                    print(e)
+                    continue
+                    
+                try:
+                    category.calculate_tgi(control)
+                except ValueError as e:
+                    failed_tgi.append((category.phlc_id, e))
+                    print(e)
+                    continue
+                
+                
+                            # PERCENT CREDIBLE INTERVALS
+                if fit_gp:
+                    category.calculate_credible_intervals(control)
+                    assert (category.credible_intervals != [])
+                    category.calculate_credible_intervals_percentage()
+                    assert (category.percent_credible_intervals is not None)
+    
+                    # compute GP derivatives:
+                    category.compute_all_gp_derivatives(control)
+                
+                
+                
+                
+        
+            
+        with open(report_name, 'w') as f:
+
+            print("Errors calculating mRECIST:", file=f)
+            print(failed_mrecist, file=f)
+            print("\n\n\n", file=f)
+            
+            print("Errors calculating angles:", file=f)
+            print(failed_response_angle, file=f)
+            print("\n\n\n", file=f)
+            
+            print("Errors calculating angles:", file=f)
+            print(failed_AUC, file=f)
+            print("\n\n\n", file=f)
+            
+            print("Errors calculating angles:", file=f)
+            print(failed_tgi, file=f)
+            print("\n\n\n", file=f)
+                       
+            
+            
+    
+        

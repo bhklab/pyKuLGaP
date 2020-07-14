@@ -17,8 +17,7 @@ from kulgap.allplot import plot_everything, create_and_plot_agreements, get_clas
     get_classification_df_from_df, \
     plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-from kulgap.aux_functions import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
-    relativize, centre, compute_response_angle
+from kulgap.aux_functions import get_all_cats, calculate_null_kl, dict_to_string
 
 from kulgap.read_data_from_anonymous import read_anonymised
 
@@ -32,7 +31,7 @@ data_folder = "data/"
 anon_filename = data_folder + "alldata_new.csv"
 filename_crown = data_folder + "20180402_sheng_results.csv"
 
-kl_null_filename = data_folder + "kl_control_vs_control.csv"
+kl_null_filename = data_folder + "kl_control_vs_control.csv" #set to None to re-compute
 ############WHERE THE REPORT (THINGS THAT FAILED) IS SAVED#########################################
 out_report = results_folder + 'report_all.txt'  # 'report_LPDX.txt'
 
@@ -92,161 +91,70 @@ allplot_figname = results_folder + "allplot.pdf"
 anon_filename = data_folder + "alldata_small.csv"
 
 failed_plot = []
+failed_gp=[]
 failed_p_value = []
 failed_mrecist = []
-failed_gp = []
-failed_response_angle = []
+
+
 
 allowed_list = []
 
 P_VAL = 0.05
 fit_gp=True
-rerun_kl_null=False
+
 
 all_patients = read_anonymised(anon_filename)
 
 for i,patient in enumerate(all_patients):
     print("Now dealing with patient %d of %d" % (i + 1, len(all_patients)))
-
     print("Num failed mRECISTS: " + str(len(failed_mrecist)))
     print("Num failed plots: " + str(len(failed_plot)))
     print("Num failed p values: " + str(len(failed_p_value)))
     print("Patient: " + str(patient.name))
-
-    # need to ensure that we've found and processed the control.
-    control = patient.categories['Control']
-    control.normalize_data()
-
+    patient.normalize_all_categories()
+    
     if fit_gp:
-        control.fit_gaussian_processes()
-        assert (control.name is not None)
-        assert (control.x is not None)
-        assert (control.y is not None)
-        assert (control.y_norm is not None)
-        assert (control.drug_start_day is not None)
-        assert (control.replicates is not None)
-        assert (control.gp is not None)
-        assert (control.gp_kernel is not None)
-
+        patient.fit_all_gps()
+        
+    patient.compute_other_measures(fit_gp,report_name = out_report)
+        
+        
+    control=patient.categories["Control"]  
+    
     for category in patient.categories.keys():
         if category != 'Control':
 
             cur_case = patient.categories[category]
-            cur_case.normalize_data()
-            cur_case.start = max(cur_case.find_start_date_index(), control.measurement_start)
-            cur_case.end = min(control.measurement_end, cur_case.measurement_end)
+            
 
-            cur_case.create_full_data(control)
-            assert (cur_case.full_data != [])
+            
 
-            # DELTA LOG LIKELIHOOD
-            if fit_gp:
-                try:
-                    cur_case.fit_gaussian_processes(control=control)
-                    assert (cur_case.gp_h0 is not None)
-                    assert (cur_case.gp_h0_kernel is not None)
-                    assert (cur_case.gp_h1 is not None)
-                    assert (cur_case.gp_h1_kernel is not None)
-                    assert (cur_case.delta_log_likelihood_h0_h1 is not None)
+            
+            
+            
 
-                    # KL DIVERGENCE
-                    cur_case.calculate_kl_divergence(control)
-                    assert (cur_case.kl_divergence is not None)
-                except Exception as e:
-                    # NEED TO FIGURE OUT HOW TO REFER TO GENERIC ERROR
-                    failed_gp.append((cur_case.phlc_id, e))
+            
 
-            # MRECIST
-            try:
-                cur_case.calculate_mrecist()
-                assert (cur_case.mrecist is not None)
-            except ValueError as e:
-                failed_mrecist.append((cur_case.phlc_id, e))
-                print(e)
-                continue
 
-            # angle
 
-            try:
-                cur_case.calculate_response_angles(control)
-                assert (cur_case.response_angle is not None)
-                cur_case.response_angle_control = {}
-                for i in range(len(control.replicates)):
-                    # cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(control.x.ravel(),control.y[i],control.find_start_date_index())
-                    start = control.find_start_date_index() - control.measurement_start
-                    if start is None:
-                        raise TypeError("The 'start' parameter is None")
-                    else:
-                        cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(
-                            control.x_cut.ravel(),
-                            centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
-                            start)
-                        cur_case.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
-                            control.x_cut.ravel(),
-                            relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
-                                       start), start)
 
-            except ValueError as e:
-                failed_response_angle.append((cur_case.phlc_id, e))
-                print(e)
-                continue
-            # compute AUC
-            try:
-                cur_case.calculate_auc(control)
-                cur_case.calculate_auc_norm(control)
-                if fit_gp:
-                    cur_case.calculate_gp_auc()
-                    cur_case.auc_gp_control = calculate_AUC(control.x_cut, control.gp.predict(control.x_cut)[0])
-                cur_case.auc_control = {}
-                start = max(cur_case.find_start_date_index(), control.measurement_start)
-                end = min(cur_case.measurement_end, control.measurement_end)
-                for i in range(len(control.replicates)):
-                    cur_case.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                control.y[i, start:end])
-                    cur_case.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                     control.y_norm[i,
-                                                                                     start:end])
-            except ValueError as e:
-                print(e)
+# =============================================================================
+# CALCULATE KL P-VALUES
+# =============================================================================
 
-            try:
-                cur_case.calculate_tgi(control)
-            except ValueError as e:
-                print(e)
+# categories_by_drug = defaultdict(list)
+# failed_by_drug = defaultdict(list)
+# for patient in all_patients:
+#     for key in patient.categories.keys():
+#         if patient.categories[key].gp:
+#             categories_by_drug[key].append(patient.categories[key])
+#         else:
+#             failed_by_drug[key].append(patient.categories[key].name)
 
-            # PERCENT CREDIBLE INTERVALS
-            if fit_gp:
-                cur_case.calculate_credible_intervals(control)
-                assert (cur_case.credible_intervals != [])
-                cur_case.calculate_credible_intervals_percentage()
-                assert (cur_case.percent_credible_intervals is not None)
-
-                # compute GP derivatives:
-                cur_case.compute_all_gp_derivatives(control)
-
-# COMPUTATION OF P-VALUES IN SEPARATE ITERATION: WE FIRST NEED TO HAVE FIT ALL THE GPs
-
-# NOW CYCLE AGAIN THROUGH all_patients TO COMPUTE kl p-values:
-
-categories_by_drug = defaultdict(list)
-failed_by_drug = defaultdict(list)
-for patient in all_patients:
-    for key in patient.categories.keys():
-        if patient.categories[key].gp:
-            categories_by_drug[key].append(patient.categories[key])
-        else:
-            failed_by_drug[key].append(patient.categories[key].name)
-
-fig_count = 0
-cur_case.kl_p_cvsc = None
 
 print("Now computing KL divergences between controls for kl_control_vs_control - this may take a moment")
 controls = [patient.categories["Control"] for patient in all_patients]
-if rerun_kl_null:
-    kl_control_vs_control = calculate_null_kl(controls, None)
-else:
-    kl_control_vs_control = calculate_null_kl(controls, kl_null_filename)
-
+kl_control_vs_control = calculate_null_kl(controls, kl_null_filename)
 print("Done computing KL divergences between controls for kl_control_vs_control")
 
 if fit_gp:
@@ -270,7 +178,6 @@ if fit_gp:
 
                     ###SOMETHING BAD GOING ON HERE:
                     # kl_histograms[cur_case.name] = [kl_divergence(x,y) for x in categories_by_drug[cur_case.name] for y in categories_by_drug['Control']]
-
                     try:
                         if cur_case.kl_divergence is not None:
                             ####COMPUTE KL DIVERGENCE PVALUES HERE!!
@@ -293,6 +200,7 @@ if fit_gp:
                         failed_p_value.append((cur_case.phlc_id, e))
                         print(e)
                         raise
+                    
 if fit_gp:
     with open(histograms_outfile, 'w') as outfile:
         for key, value in kl_histograms.items():
@@ -303,17 +211,11 @@ print("Done computing KL p-values, saved to {}".format(histograms_outfile))
 all_kl = [x["case"].kl_divergence for x in get_all_cats(all_patients).values() if
           str(x["case"].kl_divergence) != "nan"]
 
-with open(out_report, 'w') as f:
-    print("Errors during plotting:", file=f)
-    print(failed_plot, file=f)
-    print("\n\n\n", file=f)
-    print("failed p-values:", file=f)
-    print(failed_p_value, file=f)
-    print("\n\n\n", file=f)
-    print(failed_mrecist, file=f)
-    print("\n\n\n", file=f)
-    print("Errors during GP fitting:", file=f)
-    print(failed_gp, file=f)
+
+
+
+
+
 
 # =============================================================================
 # COMPILATION OF STATISTICS
@@ -397,13 +299,13 @@ for i in range(0, len(all_patients)):
                 stats_dict[key]['average_angle_control'] = cur_case.average_angle_control
                 stats_dict[key]['average_angle_rel_control'] = cur_case.average_angle_rel_control
 
-stats_df = pd.DataFrame.from_dict(stats_dict).transpose()
+full_stats_df =pd.DataFrame.from_dict(stats_dict).transpose()
 
 
-full_stats_df = stats_df
 
 
-classifiers_df = get_classification_df(all_patients, stats_df, .05, kl_control_vs_control["list"], 0.05, .6)
+
+classifiers_df = get_classification_df(all_patients, full_stats_df, .05, kl_control_vs_control["list"], 0.05, .6)
 classifiers_df.rename(columns={"mRECIST_ours": "mRECIST-ours", "mRECIST_Novartis": "mRECIST-Novartis"},
                            inplace=True)
 
@@ -413,7 +315,7 @@ classifiers_df.drop(["mRECIST-ours", "kulgap-prev"], axis=1, inplace=True)
 #     Finally we save all our files to the disk and create the figures:
 # =============================================================================
 
-stats_df.to_csv(stats_outname)
+full_stats_df.to_csv(stats_outname)
 classifiers_df.to_csv(classifiers_outname)
 
 
@@ -427,5 +329,26 @@ plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
 
 create_and_save_KT(classifiers_df, KT_outname)
 
-plot_everything(allplot_figname, all_patients, stats_df, classifiers_df, True, 0.05, 0.05,
+plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, True, 0.05, 0.05,
                 kl_control_vs_control["list"], .6)
+
+
+
+
+#quick verification:
+
+statistics_old=pd.read_csv("results/test-run-old/statistics_all.csv",index_col=0)
+if np.all(full_stats_df == statistics_old):
+    print("OK!")
+else:
+    
+    for i,col in enumerate(full_stats_df.columns):
+        if full_stats_df.iloc[0,i]!=statistics_old.iloc[0,i]:
+            print(col)
+            if np.abs(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])>0.00001:
+                print(col)
+                print(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])
+    else:
+        print("Only rounding errors")
+            
+        
