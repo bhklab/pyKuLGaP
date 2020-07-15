@@ -13,12 +13,12 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from kulgap.allplot import plot_everything, create_and_plot_agreements, get_classification_df, \
+from kulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
     plot_category, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
         create_measurement_dict, create_measurement_df
 
-from kulgap.read_data_from_anonymous import read_anonymised
+from kulgap.read_experiment_data import read_anonymised
 
 
 results_folder = "results/test-run/"

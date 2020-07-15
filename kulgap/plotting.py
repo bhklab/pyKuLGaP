@@ -7,7 +7,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.stats import mannwhitneyu
 
 from .create_heatmaps import create_agreements, create_FDR, create_KT
-from .aux_functions import dict_to_string, calculate_null_kl
+from .helpers import dict_to_string, calculate_null_kl
 
 
 sns.set(style="ticks")

@@ -14,7 +14,7 @@ from GPy.models import GPRegression
 from scipy.integrate import quad
 from scipy.stats import norm
 
-from .aux_functions import calculate_AUC, compute_response_angle, relativize, centre
+from .helpers import calculate_AUC, compute_response_angle, relativize, centre
 
 
 plotting.change_plotting_library('matplotlib')
@@ -22,33 +22,44 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class Category:
+class TreatmentCondition:
     """
-    The category represents a specific category of the patient model, such as:
+    The `TreatmentCondition` class stores treatment response data for an experimental condition within a `CancerModel`.
+    It stores all replicates for all levels of the experimental condition for a given cancer model system.
 
-    - a control/vehicle, or
-    - a particular drug administered.
+    For example, in Patient Derived Xenograph (PDX) experiments it would store the tumour size measurements at each
+    exposure time for all mouse models derived from a single patient.
 
-    It can have multiple replicates (ie. multiple growth curves)
+    In cancer cell lines (CCLs) it would store all viability measurements for each dose level for all cultures derived
+    from a single cancer cell line and treated with a specific compound.
+
+    Thus the `TreatmentCondition` class can be though of a storing data response data for a cancer model in two
+    dimensions: replicates (e.g., a specific mouse or culture) x condition levels (e.g., a specific time or dose).
+
+    Common experimental conditions:
+        * Control, i.e. no treatment
+        * Exposure to a specific drug or compound
+        * Treatment with a specific type of ionizing radiation
+
+    It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, phlc_id=None, x=None, y=None, replicates=None, drug_start_day=None, is_control=False):
+    def __init__(self, name, source_id=None, x=None, y=None, replicates=None, drug_start_day=None, is_control=False):
         """
-        Initialize a particular category of patient model.
+        Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
+        in set of PDX models derived from a single patient.
 
-
-        - x (preprocessed days)
-        - y (growth data)
-        - y_norm (normalized growth data)
-        - gp (fit GP)
-        - gp_kernel (kernel of fit GP)
-        - full_data
-
-        :param name: name of category ("Control", "Erlotinib", etc...)
-        :param x: days of monitoring
-        :param y: growth data
-        :param replicates: IDs of all of the replicates
-        :param is_control: whether or not the particular category is a control
+        :param name: [string] Name of the experimental/treatment condition (e.g., Control, Erlotinib, Paclitaxel, etc.)
+        :param source_id: [string] A unique identifier for the cancer model source. For PDX models this would be the
+            name of id of the patient from which the models were derived. For CCLs this would be the strain from which
+            all cell cultures were derived.
+        :param level: [ndarray] The level of the experimental condition. For example, the treatment exposure time
+            for each tumour size measurement or the dose level for each cell viability measurement.
+        :param response: [ndarray] The response metric for the experimental condition. E.g., the tumour size in a PDX
+            model after x days of treatment exposure or the cell viability measurements in a CCL at a specific compound
+            dose.
+        :param replicates: [ndarray] The
+        :param is_control: [bool] Whether or not the treatment condition is a control.
         :return [None] Creates the Category object
         """
 
@@ -61,7 +72,7 @@ class Category:
         self.start = None
         self.end = None
 
-        self.phlc_id = phlc_id
+        self.source_id = source_id
         self.replicates = replicates
         self.is_control = is_control
         self.kl_p_cvsc = None

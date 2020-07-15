@@ -5,13 +5,13 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from .allplot import plot_everything, create_and_plot_agreements, get_classification_df, \
+from .plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
     plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-from .aux_functions import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
+from .helpers import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
     relativize, centre, compute_response_angle
 
-from .read_data_from_anonymous import read_anonymised
+from .read_experiment_data import read_anonymised
 
 
 
