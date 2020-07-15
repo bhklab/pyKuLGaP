@@ -45,7 +45,7 @@ def read_anonymised(filename):
             new_cat.x_cut = new_cat.x[new_cat.measurement_start:new_cat.measurement_end + 1]
 
             new_patient.categories[cname] = new_cat
-
+        new_patient.normalize_all_categories()
         patients_list.append(new_patient)
 
     return patients_list

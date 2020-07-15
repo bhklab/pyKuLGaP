@@ -7,10 +7,121 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.stats import mannwhitneyu
 
 from .create_heatmaps import create_agreements, create_FDR, create_KT
-#from .create_heatmaps import create_conservative, 
+from .aux_functions import dict_to_string, calculate_null_kl
+
 
 sns.set(style="ticks")
 
+
+
+
+def create_measurement_dict(all_patients,kl_null_filename):
+    """
+    Creates a dictionary of measurements from a list of Patient objects.
+    The keys of the measurement dictionary are the experiments, the corresponding value
+    is a dictionary whose keys are the names of the measurements and ve values the corresponding
+    values of the measurement for that experiment.
+    :param all_patients: The list of Patient objects
+    :param kl_null_filename: Name of the file from which the KL null distribution is read
+    :return:  [dict] The dictionary of measurements
+    """
+    stats_dict = {}
+    kl_control_vs_control = calculate_null_kl(filename= kl_null_filename)
+    for i,patient in enumerate(all_patients):
+        control = patient.categories['Control']
+        #     control.normalize_data()
+        #     control.fit_gaussian_processes()
+
+        for category in patient.categories.keys():
+            if 'Control' not in category:
+                cur_case = patient.categories[category]
+                key = str(cur_case.phlc_id) + "*" + str(category)
+                stats_dict[key] = {'tumour_type': patient.tumour_type, 'mRECIST': None, 'num_mCR': None,
+                                   'num_mPR': None,
+                                   'num_mSD': None, 'num_mPD': None,
+                                   'perc_mCR': None, 'perc_mPR': None,
+                                   'perc_mSD': None, 'perc_mPD': None,
+                                   'drug': None,
+                                   'response_angle': None, 'response_angle_control': None,
+                                   'perc_true_credible_intervals': None,
+                                   'delta_log_likelihood': None,
+                                   'kl': None, 'kl_p_value': None, 'kl_p_cvsc': None, 'gp_deriv': None,
+                                   'gp_deriv_control': None, 'auc': None,
+                                   'auc_control_norm': None, 'auc_norm': None, 'auc_control': None, 'auc_gp': None,
+                                   'auc_gp_control': None,
+                                   'number_replicates': len(cur_case.replicates),
+                                   'number_replicates_control': len(control.replicates),
+                                   "tgi": cur_case.tgi}
+                stats_dict[key]['drug'] = category
+
+                try:
+                    cur_case.calculate_mrecist()
+                    cur_case.enumerate_mrecist()
+                except Exception as e:
+                    print(e)
+                    continue
+                
+                if cur_case.kl_divergence is not None:
+                    cur_case.kl_p_value = (len([x for x in kl_control_vs_control["list"] if
+                                                    x >= cur_case.kl_divergence]) + 1) / (
+                                                      len(kl_control_vs_control["list"]) + 1)
+
+                    cur_case.kl_p_cvsc = 1 - kl_control_vs_control["smoothed"].cdf(
+                            [cur_case.kl_divergence])
+
+                num_replicates = len(cur_case.replicates)
+                stats_dict[key]['mRECIST'] = dict_to_string(cur_case.mrecist)
+                stats_dict[key]['num_mCR'] = cur_case.mrecist_counts['mCR']
+                stats_dict[key]['num_mPR'] = cur_case.mrecist_counts['mPR']
+                stats_dict[key]['num_mSD'] = cur_case.mrecist_counts['mSD']
+                stats_dict[key]['num_mPD'] = cur_case.mrecist_counts['mPD']
+                stats_dict[key]['perc_mCR'] = cur_case.mrecist_counts['mCR'] / num_replicates
+                stats_dict[key]['perc_mPR'] = cur_case.mrecist_counts['mPR'] / num_replicates
+                stats_dict[key]['perc_mSD'] = cur_case.mrecist_counts['mSD'] / num_replicates
+                stats_dict[key]['perc_mPD'] = cur_case.mrecist_counts['mPD'] / num_replicates
+
+                stats_dict[key]['perc_true_credible_intervals'] = cur_case.percent_credible_intervals
+                stats_dict[key]['delta_log_likelihood'] = cur_case.delta_log_likelihood_h0_h1
+                stats_dict[key]['kl'] = cur_case.kl_divergence
+                stats_dict[key]['kl_p_value'] = cur_case.kl_p_value
+                stats_dict[key]['kl_p_cvsc'] = cur_case.kl_p_cvsc
+                stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_list)
+                stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_list_control)
+
+                stats_dict[key]['auc'] = dict_to_string(cur_case.auc)
+                stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)
+                stats_dict[key]['auc_control'] = dict_to_string(cur_case.auc_control)
+                stats_dict[key]['auc_control_norm'] = dict_to_string(cur_case.auc_control_norm)
+                try:
+                    stats_dict[key]['auc_gp'] = cur_case.auc_gp[0]
+                    stats_dict[key]['auc_gp_control'] = cur_case.auc_gp_control[0]
+                except TypeError:
+                    stats_dict[key]['auc_gp'] = ""
+                    stats_dict[key]['auc_gp_control'] = ""
+
+                stats_dict[key]['response_angle'] = dict_to_string(cur_case.response_angle)
+                stats_dict[key]['response_angle_rel'] = dict_to_string(cur_case.response_angle_rel)
+                stats_dict[key]['response_angle_control'] = dict_to_string(cur_case.response_angle_control)
+                stats_dict[key]['response_angle_rel_control'] = dict_to_string(cur_case.response_angle_rel_control)
+
+                stats_dict[key]['average_angle'] = cur_case.average_angle
+                stats_dict[key]['average_angle_rel'] = cur_case.average_angle_rel
+                stats_dict[key]['average_angle_control'] = cur_case.average_angle_control
+                stats_dict[key]['average_angle_rel_control'] = cur_case.average_angle_rel_control
+    return stats_dict
+    
+    
+    
+def create_measurement_df(all_patients):
+    """
+    Creates a DataFrame of measurements from a list of Patient objects.
+    One row per experiment, one column per measurement.
+    Wraps the response of create_measurement as a DataFrame
+    :param all_patients: The list of Patient objects
+    :return:  [DataFrame] The DataFrame of measurements
+    """
+    stats_dict = create_measurement_dict(all_patients)
+    return pd.DataFrame.from_dict(stats_dict).transpose() 
 
 def plusnone(a, b):
     """
@@ -22,6 +133,8 @@ def plusnone(a, b):
     if (a is None) or (b is None):
         return None
     return a + b
+
+
 
 
 def dictvals(dictionary):
@@ -267,21 +380,20 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
     return fig
 
 
-def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val_kl, all_kl, tgi_thresh):
+def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     """
     Plot a long PDF, one page per patient in all_patients
     :param outname: The name under which the PDF will be saved
     :param all_patients: list of Patient objects to be plotted
-    :param stats_df: corresponding DataFrame of continuous statisitics
-    :param ag_df: corresponding DataFrame of aggregated statisitics
+    :param stats_df: corresponding DataFrame of continuous statistics
+    :param ag_df: corresponding DataFrame of binary classifiers
+    :param kl_null_filename: Filename from which the KL null is read
     :param fit_gp: whether a GP was fitted
     :param p_val: the p-value
     :param p_val_kl: The p-value for the KuLGaP calculation
-    :param all_kl: The list of KL null values
     :param tgi_thresh: The threshold for calling a TGI response.
     """
-    # TO ADD: NICER LAYOUT - SET FIGURE SIZE BY SUBPLOT?
-    # TO ADD: PLOT BEFORE CUT-OFF (to see whether it's just a single replicate)
+    all_kl = calculate_null_kl(filename= kl_null_filename)
     with PdfPages(outname) as pdf:
         for n, patient in enumerate(all_patients):
             control = patient.categories["Control"]
@@ -313,11 +425,7 @@ def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val
                     axes[1, 0].plot(cur_cat.x[start:end], cur_cat.y_norm.mean(axis=0)[start:end], '.r-')
                     if control.y_norm is not None:
                         axes[1, 0].plot(control.x[start:end], control.y_norm.mean(axis=0)[start:end], '.b-')
-                    #                    print("x")
-                    #                    print(cur_cat.x[start:end].ravel())
-                    #                    print("y")
-                    #                    print([pointwise_kl(cur_cat,control,t).ravel()[0] for t in cur_cat.x[start:end].ravel()])
-
+                    
                     axes[1, 1].set_title("Pointwise KL divergence")
 
                     if fit_gp:
@@ -351,8 +459,7 @@ def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val
                     axes[3, 0].text(0.05, 0.3, '\n'.join(txt))
 
                     axes[0, 1].axis("off")
-                    rtl = ["kulgap: " + tsmaller(p_value(cur_cat.kl_divergence, all_kl), p_val_kl),
-                           "KuLGaP2: " + bts(cur_cat.kl_p_cvsc < p_val),
+                    rtl = ["KuLGaP: " + bts(cur_cat.kl_p_cvsc < p_val),
                            "mRECIST (Novartis): " + tsmaller(stats_df.loc[name, "perc_mPD"], 0.5),
                            "mRECIST (ours): " + tsmaller(
                                plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5),
@@ -372,12 +479,11 @@ def plot_everything(outname, all_patients, stats_df, ag_df, fit_gp, p_val, p_val
 
 
 
-def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
+def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     """
     Computes the DF of classifications (which measures call a Responder) from the continuous statistics
     :param stats_df: corresponding DataFrame of continuous statisitics
-    :param p_val: the p-value
-    :param all_kl: The list of KL null values
+    :param p_val: the p-value for the angle and AUC tests
     :param p_val_kl: The p-value for the KuLGaP calculation
     :param tgi_thresh: The threshold for calling a TGI response.    
     :return:
@@ -385,26 +491,24 @@ def get_classification_df_from_df(stats_df, p_val, all_kl, p_val_kl, tgi_thresh)
     responses = stats_df.copy()[["kl"]]
 
     responses["kulgap"] = stats_df.kl_p_cvsc.apply(lambda x: tsmaller(x, p_val, y=1, n=-1, na=0))
-    responses["kulgap-prev"] = stats_df.kl.apply(lambda x: tsmaller(p_value(x, all_kl), p_val_kl, y=1, n=-1, na=0))
     responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(lambda x: tsmaller(x, 0.5, y=1, n=-1, na=0))
-    responses["mRECIST-ours"] = stats_df.apply(
-        lambda row: tsmaller(plusnone(row["perc_mPD"], row["perc_mSD"]), 0.5, y=1, n=-1, na=0), axis=1)
-
+    
     responses["Angle"] = stats_df.apply(
         lambda row: mw_letter_from_strings(row["response_angle_rel"], row["response_angle_rel_control"], pval=p_val,
-                                           y=1, n=-1, na=0), axis=1)
+                                            y=1, n=-1, na=0), axis=1)
     responses["AUC"] = stats_df.apply(
         lambda row: mw_letter_from_strings(row["auc_norm"], row["auc_control_norm"], pval=p_val, y=1, n=-1, na=0),
         axis=1)
-    responses["TGI"] = stats_df.TGI.apply(lambda x: tsmaller(tgi_thresh, x, y=1, n=-1, na=0))
+    responses["TGI"] = stats_df.tgi.apply(lambda x: tsmaller(tgi_thresh, x, y=1, n=-1, na=0))
     responses.drop("kl", axis=1, inplace=True)
     return responses
 
 
-def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
+def get_classification_dict_with_patients(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
-    Return the responses (responder/non-responder calls) as a dictionary
-    :param all_patients:
+    Return the responses (responder/non-responder calls) as a dictionary, using the list of patients
+    rather than the DataFrame input
+    :param all_patients: list of Patient objects
     :param stats_df: corresponding DataFrame of continuous statistics
     :param p_val: the p-value
     :param all_kl: The list of KL null values
@@ -433,48 +537,7 @@ def get_classification_dict(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi
     return predict
 
 
-def get_classification_df(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
-    """
-    Return the responses (responder/non-responder calls) as a DataFrame
-    :param all_patients: A list of Patient objects
-    :param stats_df: corresponding DataFrame of continuous statistics
-    :param p_val: the p-value
-    :param all_kl: The list of KL null values
-    :param p_val_kl: The p-value for the KuLGaP calculation
-    :param tgi_thresh: The threshold for calling a TGI response.    
 
-    :return: [DataFrame] The DataFrame of responders (one column per measure, one row per experiment)
-    """
-    predict = {}
-    #    predict = {"kulgap": [], "AUC":[],"Angle":[],"mRECIST_Novartis":[],"mRECIST_ours":[]}
-    for n, patient in enumerate(all_patients):
-        for cat, cur_cat in patient.categories.items():
-            if cat != "Control":
-                name = str(patient.name) + "*" + str(cat)
-
-                predict[name] = [tsmaller(cur_cat.kl_p_cvsc, p_val, y=1, n=-1, na=0)]
-                # kulgap-prev
-                print(patient.name, cat)
-                print(str(cur_cat.kl_divergence))
-                predict[name].append(tsmaller(p_value(cur_cat.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0), )
-                # MRECIST_Novartis
-
-                predict[name].append(tsmaller(stats_df.loc[name, "perc_mPD"], 0.5, y=1, n=-1, na=0))
-                # MRECIST_ours
-                predict[name].append(
-                    tsmaller(plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5, y=1, n=-1,
-                             na=0))
-                # angle
-                predict[name].append(
-                    mw_letter(cur_cat.response_angle_rel, cur_cat.response_angle_rel_control, pval=p_val, y=1, n=-1,
-                              na=0))
-                # AUC
-                predict[name].append(mw_letter(cur_cat.auc_norm, cur_cat.auc_control_norm, pval=p_val, y=1, n=-1, na=0))
-                predict[name].append(tsmaller(tgi_thresh, cur_cat.tgi, y=1, n=-1, na=0))
-    df = pd.DataFrame.from_dict(predict, orient="index",
-                                columns=["kulgap", "kulgap-prev", "mRECIST_Novartis", "mRECIST_ours", "Angle", "AUC",
-                                         "TGI"])
-    return df
 
 
 def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname):
@@ -586,33 +649,35 @@ def plot_histogram(list_to_be_plotted, varname, marked=None, savename=None, smoo
     plt.savefig(savename)
     return fig
 
-#TODO: This function to be removedl
-# def create_scatterplot(stats_df, classifiers_df, savename):
-#     """
 
-#     :param stats_df:
-#     :param classifiers_df:
-#     :param savename:
-#     """
-#     # deprecated, previous way to plot figure 2C.
-#     df = stats_df[["kl"]]
-#     df.loc[:, "kl_p"] = stats_df.kl_p_cvsc
-#     df.loc[:, "Ys"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
+def create_scatterplot(stats_df, classifiers_df, savename):
+    """
+    Creates a scatterplot of all experiments, plotting the number of measures agreeing on 
+    a responder label against the logarithm of the KL divergenc.
+    Not used in the paper
+    :param stats_df: [DataFrame] The raw values of the statistics
+    :param classifiers_df: [DataFrame] The binary values (1/0) of the measures
+    :param savename: The name under which the figure is saved.
+    """
 
-#     plt.figure()
-#     plt.ylim(0, 5)
-#     plt.plot(df.kl.apply(logna), df.Ys, 'r', marker=".", markersize=2, linestyle="")
-#     c = np.log(7.97)
-#     plt.plot([c, c], [0, 5], 'k-', lw=1)
-#     c = np.log(5.61)
-#     plt.plot([c, c], [0, 5], 'k--', lw=1)
-#     c = np.log(13.9)
-#     plt.plot([c, c], [0, 5], 'k--', lw=1)
-#     plt.xlabel("Log(KL)")
-#     plt.ylabel('Number of measures that agree on a "responder" label')
-#     plt.ylim(-0.2, 4.2)
-#     plt.yticks(ticks=[0, 1, 2, 3, 4])
-#     plt.savefig(savename)
+    df = stats_df[["kl"]]
+    df.loc[:, "kl_p"] = stats_df.kl_p_cvsc
+    df.loc[:, "Ys"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
+
+    plt.figure()
+    plt.ylim(0, 5)
+    plt.plot(df.kl.apply(logna), df.Ys, 'r', marker=".", markersize=2, linestyle="")
+    c = np.log(7.97)
+    plt.plot([c, c], [0, 5], 'k-', lw=1)
+    c = np.log(5.61)
+    plt.plot([c, c], [0, 5], 'k--', lw=1)
+    c = np.log(13.9)
+    plt.plot([c, c], [0, 5], 'k--', lw=1)
+    plt.xlabel("Log(KL)")
+    plt.ylabel('Number of measures that agree on a "responder" label')
+    plt.ylim(-0.2, 4.2)
+    plt.yticks(ticks=[0, 1, 2, 3, 4])
+    plt.savefig(savename)
 
 
 def plot_histograms_2c(stats_df, classifiers_df, savename):

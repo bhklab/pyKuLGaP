@@ -6,7 +6,6 @@ import pandas as pd
 import statsmodels.api as sm
 
 from .allplot import plot_everything, create_and_plot_agreements, get_classification_df, \
-    get_classification_df_from_df, \
     plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
 from .aux_functions import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
@@ -329,8 +328,8 @@ if __name__ == '__main__':
                 outfile.write(",".join(map(str, value)))
                 outfile.write("\n")
     print("Done computing KL p-values, saved to {}".format(histograms_outfile))
-    all_kl = [x["case"].kl_divergence for x in get_all_cats(all_patients).values() if
-              str(x["case"].kl_divergence) != "nan"]
+    # all_kl = [x["case"].kl_divergence for x in get_all_cats(all_patients).values() if
+    #           str(x["case"].kl_divergence) != "nan"]
 
     with open(out_report, 'w') as f:
         print("Errors during plotting:", file=f)

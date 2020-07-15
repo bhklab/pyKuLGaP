@@ -101,10 +101,10 @@ def cv_smoothing(list_to_be_smoothed):
     return sm.nonparametric.KDEMultivariate(data=list_to_be_smoothed, var_type="c", bw="cv_ml")
 
 
-def calculate_null_kl(category_list, filename=None):
+def calculate_null_kl(category_list=None, filename=None):
     """
-    Calculates the smoothed null KL distribution.
-    :param category_list: [list] The list of categories from which the null kl is to be calculated
+    Calculates the smoothed null KL distribution. One of the two parameters must be non-null
+    :param category_list: [list] The list of categories from which the null kl is to be calculated.
     :param filename: If None, calculate from category_list. Else read in from filename
     :return: [list] the list of values and the smoothed object
     """
