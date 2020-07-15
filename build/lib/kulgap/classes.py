@@ -22,15 +22,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class TreatmentResponseExperiment:
-    """
-    This class contains all CancerModel objects for a given treatment response experiment.
-
-    """
-
-    def __init__(self, CancerModels):
-        self.CancerModels = CancerModels
-
 
 
 class TreatmentCondition:

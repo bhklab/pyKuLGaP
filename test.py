@@ -18,7 +18,7 @@ from kulgap.plotting import plot_everything, create_and_plot_agreements, get_cla
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
         create_measurement_dict, create_measurement_df
 
-from kulgap.read_experiment_data import read_anonymised
+from kulgap.read_experiment_data import read_pdx_data
 
 
 results_folder = "results/test-run/"
@@ -102,7 +102,7 @@ P_VAL = 0.05
 fit_gp=True
 
 
-all_patients = read_anonymised(anon_filename)
+all_patients = read_pdx_data(anon_filename)
 
 for i,patient in enumerate(all_patients):
     if fit_gp:
