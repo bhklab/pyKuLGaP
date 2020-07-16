@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+## ---- TreatmentResponseExperiment Object
+
 class TreatmentResponseExperiment:
     """
     This class contains all CancerModel objects for a given treatment response experiment.
@@ -45,6 +47,10 @@ class TreatmentResponseExperiment:
     def __repr__(self):
         return f'Cancer Models: {self.model_names()}\nTreatment Categories: {self.all_treatment_categories()}\n'
 
+    def __iter__(self):
+        """Returns the iterator object when a `TreatmentResponseExperiment` is called for looping"""
+        return TREIterator(TRE=self)
+
     def model_names(self):
         """
         Getter for the names of the models in a `TreatmentResponseExperiment` object.
@@ -57,7 +63,6 @@ class TreatmentResponseExperiment:
         treatment_conditons = [item for sublist in [model.categories for model in self.data.cancer_models] for
                                item in sublist]
         return np.unique(np.array(treatment_conditons))
-
 
 
 class CancerModel:
@@ -104,7 +109,7 @@ class CancerModel:
                 "start date: %s\n"
                 "drug start day: %s\n"
                 "end date: %s\n"
-                % (self.name, [key for key in self.categories], self.phlc_sample,
+                % (self.name, [key for key in self.categories], self.source_id,
                    self.start_date, self.drug_start_day, self.end_date))
 
     def normalize_all_categories(self):
@@ -241,6 +246,32 @@ class CancerModel:
             print(failed_tgi, file=f)
             print("\n\n\n", file=f)
 
+
+# -- Helper classes for TreatmentResponseExperiment
+
+class TREIterator:
+    """
+    Iterator class for the `TreatmentResponseExperiment` class, allows looping over the object.
+    """
+
+    def __init__(self, TRE):
+        """Initialize the iterator object with the TreatmentResponseExperiment data and an iterator index"""
+        self.TRE = TRE.data
+        self.index = 0
+
+    def __next__(self):
+        """For each row return """
+        if self.index <= self.TRE.shape[0] - 1:
+            result_dict = self.TRE.iloc[self.index, ].to_dict()
+            result = (result_dict.get('model_names'), result_dict.get('cancer_models'))
+        else:
+            raise StopIteration
+        self.index += 1
+        return result
+
+
+
+## ---- TreatmentCondition Object
 
 class TreatmentCondition:
     """

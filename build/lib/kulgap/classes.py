@@ -45,6 +45,9 @@ class TreatmentResponseExperiment:
     def __repr__(self):
         return f'Cancer Models: {self.model_names()}\nTreatment Categories: {self.all_treatment_categories()}\n'
 
+    def __iter__(self):
+        return self.data.to_dict()
+
     def model_names(self):
         """
         Getter for the names of the models in a `TreatmentResponseExperiment` object.
@@ -104,7 +107,7 @@ class CancerModel:
                 "start date: %s\n"
                 "drug start day: %s\n"
                 "end date: %s\n"
-                % (self.name, [key for key in self.categories], self.phlc_sample,
+                % (self.name, [key for key in self.categories], self.source_id,
                    self.start_date, self.drug_start_day, self.end_date))
 
     def normalize_all_categories(self):

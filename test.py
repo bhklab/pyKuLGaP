@@ -104,7 +104,7 @@ fit_gp=True
 
 all_patients = read_pdx_data(anon_filename)
 
-for i,patient in enumerate(all_patients):
+for i, patient in enumerate(all_patients):
     if fit_gp:
         patient.fit_all_gps()
     
