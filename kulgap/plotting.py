@@ -13,11 +13,12 @@ from .helpers import dict_to_string, calculate_null_kl
 sns.set(style="ticks")
 
 
-def create_measurement_dict(all_patients, kl_null_filename):
+def create_measurement_dict(all_models, kl_null_filename):
     """
     Creates a dictionary of measurements from a list of CancerModel objects.
     The keys of the measurement dictionary are the experiments, the corresponding value
     is a dictionary whose keys are the names of the measurements and ve values the corresponding
+
     values of the measurement for that experiment.
     :param all_patients: The list of CancerModel objects
     :param kl_null_filename: Name of the file from which the KL null distribution is read
@@ -25,16 +26,14 @@ def create_measurement_dict(all_patients, kl_null_filename):
     """
     stats_dict = {}
     kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
-    for i, patient in enumerate(all_patients):
-        control = patient.categories['Control']
-        #     control.normalize_data()
-        #     control.fit_gaussian_processes()
+    for name, cancer_model in all_models:
+        control = cancer_model.categories['Control']
 
-        for category in patient.categories.keys():
+        for category in cancer_model.categories.keys():
             if 'Control' not in category:
-                cur_case = patient.categories[category]
+                cur_case = cancer_model.categories[category]
                 key = str(cur_case.source_id) + "*" + str(category)
-                stats_dict[key] = {'tumour_type': patient.tumour_type, 'mRECIST': None, 'num_mCR': None,
+                stats_dict[key] = {'tumour_type': cancer_model.tumour_type, 'mRECIST': None, 'num_mCR': None,
                                    'num_mPR': None,
                                    'num_mSD': None, 'num_mPD': None,
                                    'perc_mCR': None, 'perc_mPR': None,

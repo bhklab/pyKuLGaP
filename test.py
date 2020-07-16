@@ -104,11 +104,10 @@ fit_gp=True
 
 all_patients = read_pdx_data(anon_filename)
 
-for i, patient in enumerate(all_patients):
+for model_name, CancerModel in all_patients:
     if fit_gp:
-        patient.fit_all_gps()
-    
-    patient.compute_other_measures(fit_gp,report_name = out_report)
+        CancerModel.fit_all_gps()
+    CancerModel.compute_other_measures(fit_gp, report_name=out_report)
         
         
             

@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-## ---- TreatmentResponseExperiment Object
+#### ---- TreatmentResponseExperiment Object
 
 class TreatmentResponseExperiment:
     """
@@ -60,57 +60,156 @@ class TreatmentResponseExperiment:
         return self.data.model_names.unique()
 
     def all_treatment_categories(self):
-        treatment_conditons = [item for sublist in [model.categories for model in self.data.cancer_models] for
+        treatment_conditions = [item for sublist in [model.categories for model in self.data.cancer_models] for
                                item in sublist]
-        return np.unique(np.array(treatment_conditons))
+        return np.unique(np.array(treatment_conditions))
 
+
+# -- Helper classes for TreatmentResponseExperiment
+
+class TREIterator:
+    """
+    Iterator class for the `TreatmentResponseExperiment` class, allows looping over the object.
+    """
+
+    def __init__(self, TRE):
+        """Initialize the iterator object with the TreatmentResponseExperiment data and an iterator index"""
+        self.TRE = TRE.data
+        self.index = 0
+
+    def __next__(self):
+        """For each row return """
+        if self.index <= self.TRE.shape[0] - 1:
+            result_dict = self.TRE.iloc[self.index, ].to_dict()
+            result = (result_dict.get('model_names'), result_dict.get('cancer_models'))
+        else:
+            raise StopIteration
+        self.index += 1
+        return result
+
+
+#### ---- CancerModel Object
 
 class CancerModel:
     """
-    The patient represents where the cancer sample comes from.
+    A `CancerModel` represents one or more samples with the same source. For example, in PDX models it would represent
+    all tumour growth measurements for mice derived from a single patient. In CCL models it would represent all
+    cellular viability measurements for cultures grown with a single cancer cell line.
     """
 
-    def __init__(self, name, source_id=None, tumour_type=None,
-                 start_date=None, drug_start_day=None,
-                 end_date=None):
+    def __init__(self, name, source_id=None, tumour_type=None, start_date=None, treatment_start_date=None, end_date=None,
+                 treatment_condition_dict={'condition_name': None, 'treatment_condition': None}, model_type='PDX'):
         """
         Initialize attributes.
 
-        :param name: name of the patient or PHLC Donor ID
-        :param source_id: may not exist for all
-        :param start_date: of monitoring
-        :param drug_start_day: of drug administration
+        :param name: [string] Name of the patient or PHLC Donor ID
+        :param source_id: [string] The source for this cancer model. (E.g., a patient id for PDX models, a specific
+            cell line for CCL models.
+        :param start_date: [float] A numeric representation of the starting date of the experiment in days.
         :param end_date: of monitoring
-        :param is_rdata: if legacy
         """
 
-        self.name = name
-        self.categories = {}
+        # -- Defining internal data representation
+        self.__data = pd.DataFrame({
+            # Annotation columns
+            'name': name,
+            'source_id': source_id,
+            'start_date': start_date,
+            'treatment_start_date': treatment_start_date,
+            'end_date': end_date,
+            'tumour_type': tumour_type,
+            'model_type': model_type,
+            # List column with all `TreatmentCondition` objects
+            'treatment_conditions': [treatment_condition_dict],
+        })
 
-        self.source_id = source_id
-        self.start_date = start_date
-        self.drug_start_day = drug_start_day
-        self.end_date = end_date
+    # -- Defining object attributes to get and set from __data
+    @property
+    def name(self):
+       return self.__data.name
 
-        self.tumour_type = tumour_type
+    @name.setter
+    def name(self, new_name):
+        self.__data.name = new_name
 
-    def add_category(self, category):
-        """
-        Add a category to the CancerModel.
+    @property
+    def source_id(self):
+        return self.__data.source_id
 
-        :param category: a TreatmentCondition object
-        """
-        self.categories[category.name] = category
+    @source_id.setter
+    def source_id(self, new_source_id):
+        self.__data.source_id = new_source_id
 
+    @property
+    def start_date(self):
+        return self.__data.start_date
+
+    @start_date.setter
+    def start_date(self, new_start_date):
+        self.__date.start_date = new_start_date
+
+    @property
+    def treatment_start_date(self):
+        return self.treatment_start_date
+
+    @treatment_start_date.setter
+    def treatment_start_date(self, new_treatment_start_date):
+        self.__data.treatment_start_date = new_treatment_start_date
+
+    @property
+    def end_date(self):
+        return self.__data.end_date
+
+    @end_date.setter
+    def end_date(self, new_end_date):
+        self.__data.end_date = new_end_date
+
+    @property
+    def model_type(self):
+        return self.__data.model_type
+
+    @model_type.setter
+    def model_type(self, new_model_type):
+        self.__data.model_type = new_model_type
+
+    @property
+    def treatment_conditions(self):
+        return self.__data.treatment_conditions
+
+    @treatment_conditions.setter
+    def treatment_conditions(self, new_treatment_conditions):
+        if ~isinstance(new_treatment_conditions, list):
+            raise TypeError("Please pass a dict with treatment names as the keys and `TreatmentCondition` objects as the"
+                            "values to use this setter method")
+        if any([~isinstance(item, TreatmentCondition) for item in new_treatment_conditions.items()]):
+            raise TypeError("An item in your updated treatment conditions in not a `TreatmentCondition` object.")
+        self.__data.treatment_conditions = new_treatment_conditions
+
+    # -- Implementing built in methods for `CancerModel` class
     def __repr__(self):
-        return ("\nCancerModel: %s\n"
-                "categories: %s \n"
-                "phlc sample: %s\n"
-                "start date: %s\n"
-                "drug start day: %s\n"
-                "end date: %s\n"
-                % (self.name, [key for key in self.categories], self.source_id,
-                   self.start_date, self.drug_start_day, self.end_date))
+        return ('\n'.join([f"CancerModel: {self.__data.name}",
+                           f"Categories: {list(self.__data.treatment_conditions.keys())}",
+                           f"Source Id: {self.__data.source_id}",
+                           f"Start Date: {self.__data.start_date}",
+                           f"Treatment Start Date: {self.__data.treatment_start_date}",
+                           f"End Date: {self.__data.end_date}"]))
+
+    def __iter__(self):
+        """Returns a dictionary object for iteration"""
+        return CancerModelIterator(cancer_model=self)
+
+    # Class methods
+    def add_category(self, treatment_condition):
+        """
+        Add a `TreatmentCondition` object to
+
+        :param treatment_condition: a TreatmentCondition object
+        """
+        if ~isinstance(treatment_condition, TreatmentCondition):
+            raise TypeError("Only `TreatmentCondition` object can be added with this method")
+        if treatment_condition.name in list(self.treatment_conditions.keys()):
+            raise TypeError(f"A treatment condition named {treatment_condition.name} already exists in the `CancerModel`")
+        self.treatment_conditions[treatment_condition.name] = treatment_condition
 
     def normalize_all_categories(self):
         """
@@ -119,7 +218,10 @@ class CancerModel:
         Note: this requires the presence of a control!
         :return: [None]
         """
-        control = self.categories["Control"]
+        control = self.categories.get("Control")
+        if ~isinstance(control, TreatmentCondition):
+            raise TypeError("The `control` variable is not a `TreatmentConditon`, please ensure a treatment condition"
+                            "named 'Control' exists in this object.")
         for category_name, category in self.categories.items():
             category.normalize_data()
             if category_name != "Control":
@@ -133,7 +235,10 @@ class CancerModel:
         Fits GPs to all Categories in the CancerModel object
         :return: [None]
         """
-        control = self.categories["Control"]
+        control = self.categories.get("Control")
+        if ~isinstance(control, TreatmentCondition):
+            raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
+                            "named 'Control' exists in this object.")
         control.fit_gaussian_processes()
         for category_name, category in self.categories.items():
             if category_name != "Control":
@@ -178,11 +283,11 @@ class CancerModel:
                         else:
                             category.response_angle_control[control.replicates[i]] = compute_response_angle(
                                 control.x_cut.ravel(),
-                                centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
+                                centre(control.response[i, control.measurement_start:control.measurement_end + 1], start),
                                 start)
                             category.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
                                 control.x_cut.ravel(),
-                                relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
+                                relativize(control.response[i, control.measurement_start:control.measurement_end + 1],
                                            start), start)
 
                 except ValueError as e:
@@ -204,7 +309,7 @@ class CancerModel:
                         category.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
                                                                                     control.y[i, start:end])
                         category.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                         control.y_norm[i,
+                                                                                         control.response_norm[i,
                                                                                          start:end])
                 except ValueError as e:
                     failed_AUC.append((category.source_id, e))
@@ -247,27 +352,20 @@ class CancerModel:
             print("\n\n\n", file=f)
 
 
-# -- Helper classes for TreatmentResponseExperiment
+# -- Helper classes for CancerModel
 
-class TREIterator:
-    """
-    Iterator class for the `TreatmentResponseExperiment` class, allows looping over the object.
-    """
-
-    def __init__(self, TRE):
-        """Initialize the iterator object with the TreatmentResponseExperiment data and an iterator index"""
-        self.TRE = TRE.data
+class CancerModelIterator:
+    def __init__(self, cancer_model):
+        self.model = cancer_model
         self.index = 0
 
     def __next__(self):
-        """For each row return """
-        if self.index <= self.TRE.shape[0] - 1:
-            result_dict = self.TRE.iloc[self.index, ].to_dict()
-            result = (result_dict.get('model_names'), result_dict.get('cancer_models'))
+        if self.index <= len(self.model.treatment_conditions) - 1:
+            results = self.model.treatment_conditions[self.index]
         else:
             raise StopIteration
         self.index += 1
-        return result
+        return results
 
 
 
@@ -295,7 +393,8 @@ class TreatmentCondition:
     It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, source_id=None, x=None, y=None, replicates=None, drug_start_day=None, is_control=False):
+    def __init__(self, name, source_id=None, level=None, response=None, replicates=None, treatment_start_date=None,
+                 is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
         in set of PDX models derived from a single patient.
@@ -314,11 +413,18 @@ class TreatmentCondition:
         :return [None] Creates the TreatmentCondition object
         """
 
+        # self.__data = pd.DataFrame({
+        #     'name': name,
+        #     'source_id': source_id,
+        #     'level':
+        # })
+
+
         self.name = name
-        self.x = np.asarray([[day] for day in x])
-        self.y = np.asarray(y.T).astype(float)
-        self.y_norm = None
-        self.drug_start_day = drug_start_day
+        self.level = np.asarray([[day] for day in level])
+        self.response = np.asarray(response.T).astype(float)
+        self.response_norm = None
+        self.treament_start_date = treatment_start_date
 
         self.start = None
         self.end = None
@@ -399,8 +505,8 @@ class TreatmentCondition:
         start = None
         start_found = False
 
-        for i in range(len(self.x.ravel())):
-            if self.x[i] - 1 <= self.drug_start_day <= self.x[i] + 1 and start_found == False:
+        for i in range(len(self.level.ravel())):
+            if self.level[i] - 1 <= self.treament_start_date <= self.level[i] + 1 and start_found == False:
                 start = i
                 start_found = True
         return start
@@ -409,11 +515,11 @@ class TreatmentCondition:
         """
         Normalizes all growths using normalize_first_day_and_log_transform helper function.
 
-        :return [None] modifies self.y_norm
+        :return [None] modifies self.response_norm
         """
 
         logger.info("Normalizing data for " + self.name)
-        self.y_norm = self.__normalize_treatment_start_day_and_log_transform(self.y,
+        self.response_norm = self.__normalize_treatment_start_day_and_log_transform(self.response,
                                                                              self.find_start_date_index())
 
     def __normalize_treatment_start_day_and_log_transform(self, y, treatment_start):
@@ -428,8 +534,8 @@ class TreatmentCondition:
         # if y.ndim == 1:
         #     return np.log((y + 0.0001) / np.median(y[treatment_start]))
         # else:
-        # print(self.drug_start_day)
-        # print(self.x)
+        # print(self.treament_start_date)
+        # print(self.level)
         # print(y)
         #
         # print(np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start)], dtype=float).T) + 1)
@@ -443,14 +549,14 @@ class TreatmentCondition:
         """
 
         # control
-        for j, entry in enumerate(control.y_norm.T):
+        for j, entry in enumerate(control.response_norm.T):
             for y in entry:
-                self.full_data.append([control.x[j][0], 0, y])
+                self.full_data.append([control.level[j][0], 0, y])
 
         # case
-        for j, entry in enumerate(self.y_norm.T):
+        for j, entry in enumerate(self.response_norm.T):
             for y in entry:
-                self.full_data.append([self.x[j][0], 1, y])
+                self.full_data.append([self.level[j][0], 1, y])
 
         self.full_data = np.asarray(self.full_data).astype(float)
 
@@ -465,8 +571,8 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.y_norm.mean(axis=0)[self.start:self.end + 1],
-                       control.y_norm.mean(axis=0)[self.start:self.end + 1], 0, self.end - self.start)
+        self.tgi = TGI(self.response_norm.mean(axis=0)[self.start:self.end + 1],
+                       control.response_norm.mean(axis=0)[self.start:self.end + 1], 0, self.end - self.start)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -483,8 +589,8 @@ class TreatmentCondition:
         logger.info("Fitting Gaussian processes for " + self.name)
 
         # control for number of measurements per replicate if time not same length
-        # self.y_norm.shape[0] is num replicates, [1] is num measurements
-        obs_per_replicate = self.y_norm.shape[1]
+        # self.response_norm.shape[0] is num replicates, [1] is num measurements
+        obs_per_replicate = self.response_norm.shape[1]
         print("Now attempting to fit:")
         print("self.name:")
         print(self.name)
@@ -493,8 +599,8 @@ class TreatmentCondition:
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
-        y_norm_trunc = self.y_norm[:, self.measurement_start:self.measurement_end]
-        x = np.tile(self.x[self.measurement_start:self.measurement_end], (len(self.replicates), 1))
+        y_norm_trunc = self.response_norm[:, self.measurement_start:self.measurement_end]
+        x = np.tile(self.level[self.measurement_start:self.measurement_end], (len(self.replicates), 1))
         y = np.resize(y_norm_trunc, (y_norm_trunc.shape[0] * y_norm_trunc.shape[1], 1))
         self.gp = GPRegression(x, y, self.gp_kernel)
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
@@ -539,15 +645,15 @@ class TreatmentCondition:
 
         max_x_index = min(self.measurement_end, control.measurement_end)
 
-        if control.y.shape[1] > self.y.shape[1]:
-            self.kl_divergence = abs(1 / (self.x[max_x_index] - self.drug_start_day) *
-                                     quad(kl_integrand, self.drug_start_day, self.x[max_x_index], limit=100)[0])[0]
-        #            abs(quad(kl_integrand, self.drug_start_day, self.x[max_x_index])[0]
-        #                                     - max(self.x) / 2)[0]
+        if control.response.shape[1] > self.response.shape[1]:
+            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treament_start_date) *
+                                     quad(kl_integrand, self.treament_start_date, self.level[max_x_index], limit=100)[0])[0]
+        #            abs(quad(kl_integrand, self.treament_start_date, self.level[max_x_index])[0]
+        #                                     - max(self.level) / 2)[0]
         else:
-            self.kl_divergence = abs(1 / (control.x[max_x_index] - self.drug_start_day) *
-                                     quad(kl_integrand, self.drug_start_day, control.x[max_x_index], limit=100)[0])[0]
-        #            abs(quad(kl_integrand, self.drug_start_day, control.x[max_x_index])[0]- max(control.x) / 2)[0]
+            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treament_start_date) *
+                                     quad(kl_integrand, self.treament_start_date, control.level[max_x_index], limit=100)[0])[0]
+        #            abs(quad(kl_integrand, self.treament_start_date, control.level[max_x_index])[0]- max(control.level) / 2)[0]
 
         logger.info(self.kl_divergence)
 
@@ -624,25 +730,25 @@ class TreatmentCondition:
             if start == None:
                 raise
             else:
-                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),
-                                                                                        self.__centre(self.y[i], start),
+                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.level.ravel(),
+                                                                                        self.__centre(self.response[i], start),
                                                                                         start)
-                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.x.ravel(),
-                                                                                            self.__relativize(self.y[i],
+                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.level.ravel(),
+                                                                                            self.__relativize(self.response[i],
                                                                                                               start),
                                                                                             start)
 
-            #                np.arctan((self.y[i][-1] - self.y[i][start]) / (self.x.ravel()[len(self.y[i])-1] - self.drug_start_day) )
-        self.average_angle = self.__compute_response_angle(self.x.ravel(),
-                                                           self.__centre(np.nanmean(self.y, axis=0), start), start)
-        self.average_angle_rel = self.__compute_response_angle(self.x.ravel(),
-                                                               self.__relativize(np.nanmean(self.y, axis=0), start),
+            #                np.arctan((self.response[i][-1] - self.response[i][start]) / (self.level.ravel()[len(self.response[i])-1] - self.treament_start_date) )
+        self.average_angle = self.__compute_response_angle(self.level.ravel(),
+                                                           self.__centre(np.nanmean(self.response, axis=0), start), start)
+        self.average_angle_rel = self.__compute_response_angle(self.level.ravel(),
+                                                               self.__relativize(np.nanmean(self.response, axis=0), start),
                                                                start)
-        self.average_angle_control = self.__compute_response_angle(control.x.ravel(),
-                                                                   self.__centre(np.nanmean(control.y, axis=0), start),
+        self.average_angle_control = self.__compute_response_angle(control.level.ravel(),
+                                                                   self.__centre(np.nanmean(control.response, axis=0), start),
                                                                    start)
-        self.average_angle_rel_control = self.__compute_response_angle(control.x.ravel(),
-                                                                       self.__relativize(np.nanmean(control.y, axis=0),
+        self.average_angle_rel_control = self.__compute_response_angle(control.level.ravel(),
+                                                                       self.__relativize(np.nanmean(control.response, axis=0),
                                                                                          start), start)
 
     @staticmethod
@@ -667,7 +773,7 @@ class TreatmentCondition:
         :return
         """
         #
-        self.auc_gp = self.__calculate_AUC(self.x, self.gp.predict(self.x)[0])
+        self.auc_gp = self.__calculate_AUC(self.level, self.gp.predict(self.level)[0])
 
     def calculate_auc(self, control):
         """
@@ -678,7 +784,7 @@ class TreatmentCondition:
         start = max(self.find_start_date_index(), control.measurement_start)
         end = min(self.measurement_end, control.measurement_end)
         for i in range(len(self.replicates)):
-            self.auc[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end], self.y[i, start:end])
+            self.auc[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end], self.response[i, start:end])
 
     def calculate_auc_norm(self, control):
         """
@@ -689,8 +795,8 @@ class TreatmentCondition:
         start = max(self.find_start_date_index(), control.measurement_start)
         end = min(self.measurement_end, control.measurement_end)
         for i in range(len(self.replicates)):
-            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.x.ravel()[start:end],
-                                                                     self.y_norm[i, start:end])
+            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end],
+                                                                     self.response_norm[i, start:end])
 
     def calculate_mrecist(self):
         """
@@ -706,19 +812,19 @@ class TreatmentCondition:
         start = self.find_start_date_index()
         end = self.measurement_end
         for i in range(len(self.replicates)):
-            # days_volume = zip(self.x.ravel(), self.y[i])
+            # days_volume = zip(self.level.ravel(), self.response[i])
 
             if start is None:
                 raise
             else:
-                initial_volume = self.y[i][start]
+                initial_volume = self.response[i][start]
 
                 # array of all responses for t >= 3
                 responses = []
                 average_responses = []
 
-                for day, volume in zip(self.x.ravel(), self.y[i]):
-                    if (day - self.drug_start_day >= 3) and (day <= self.x[end]):
+                for day, volume in zip(self.level.ravel(), self.response[i]):
+                    if (day - self.treament_start_date >= 3) and (day <= self.level[end]):
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -732,13 +838,13 @@ class TreatmentCondition:
                     self.mrecist[self.replicates[i]] = 'mPD'
 
         for i in range(len(self.replicates)):
-            days_volume = zip(self.x.ravel(), self.y[i])
+            days_volume = zip(self.level.ravel(), self.response[i])
             start = self.find_start_date_index()
 
             if start is None:
                 raise
             else:
-                initial_volume = self.y[i][start]
+                initial_volume = self.response[i][start]
 
                 # array of all responses for t >= 10
                 responses = []
@@ -747,8 +853,8 @@ class TreatmentCondition:
                 day_diff = 0
 
                 for day, volume in days_volume:
-                    day_diff = day - self.drug_start_day
-                    if day >= self.drug_start_day and day_diff >= 3:
+                    day_diff = day - self.treament_start_date
+                    if day >= self.treament_start_date and day_diff >= 3:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -828,13 +934,13 @@ c       :param control: control TreatmentCondition object
         logger.info("Calculating credible intervals for: " + self.name)
 
         if control is not None:
-            largest_x_index = max(len(control.x), len(self.x))
+            largest_x_index = max(len(control.level), len(self.level))
 
-            if len(control.x) > len(self.x):
-                for i in self.x[1:]:
+            if len(control.level) > len(self.level):
+                for i in self.level[1:]:
                     self.credible_intervals.append((self.__credible_interval(0.95, i[0], control=control)[0], i[0]))
             else:
-                for i in control.x[1:]:
+                for i in control.level[1:]:
                     self.credible_intervals.append((self.__credible_interval(0.95, i[0], control=control)[0], i[0]))
         else:
             logger.error("The function `calculate_credible_intervals` requires control.")
@@ -882,9 +988,9 @@ c       :param control: control TreatmentCondition object
         """
 
         logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
-        for x in self.x:
+        for x in self.level:
             self.rates_list.append(self.__gp_derivative(x, self.gp)[0])
-        for x in control.x:
+        for x in control.level:
             self.rates_list_control.append(self.__gp_derivative(x, control.gp)[0])
         self.rates_list = np.ravel(self.rates_list)
         self.rates_list_control = np.ravel(self.rates_list_control)
@@ -916,7 +1022,7 @@ c       :param control: control TreatmentCondition object
                 "Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
 
             # set xlim
-            gp_x_limit = max(self.x) + 5
+            gp_x_limit = max(self.level) + 5
 
             # Control
             control.gp.plot_data(ax=ax, color='red')
@@ -929,14 +1035,14 @@ c       :param control: control TreatmentCondition object
             self.gp.plot_confidence(ax=ax, color='blue', plot_limits=[0, gp_x_limit])
 
             # Drug Start Line
-            plt.plot([self.drug_start_day, self.drug_start_day], [-10, 15], 'k-', lw=1)
+            plt.plot([self.treament_start_date, self.treament_start_date], [-10, 15], 'k-', lw=1)
 
-            plt.xlabel('Day')
+            plt.levellabel('Day')
             plt.ylabel('Normalized log tumor size')
             plt.ylim(-10, 15)
 
             # Always select the longest date + 5
-            plt.xlim(0, max(self.x) + 5)
+            plt.levellim(0, max(self.level) + 5)
 
             if show_kl_divergence:
                 plt.text(2, -8, 'KL Divergence: ' + str(self.kl_divergence))
@@ -958,7 +1064,7 @@ c       :param control: control TreatmentCondition object
         """
 
         return ("\nName: %s\n"
-                "drug_start_day: %s\n"
+                "treament_start_date: %s\n"
                 "source_id: %s\n"
                 # "replicates: %s\n"
                 "kl_divergence: %s\n"
@@ -966,5 +1072,5 @@ c       :param control: control TreatmentCondition object
                 "mrecist: %s\n"
                 "percent_credible_intervals: %s\n"
                 "rates_list: %s \n"
-                % (self.name, str(self.drug_start_day), self.source_id,  # [r for r in self.replicates],
+                % (self.name, str(self.treament_start_date), self.source_id,  # [r for r in self.replicates],
                    self.kl_divergence, self.kl_p_value, self.mrecist, self.percent_credible_intervals, self.rates_list))
