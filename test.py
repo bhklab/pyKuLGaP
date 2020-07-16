@@ -21,7 +21,7 @@ from kulgap.plotting import plot_everything, create_and_plot_agreements, get_cla
 from kulgap.read_experiment_data import read_pdx_data
 
 
-results_folder = "results/test-run/"
+results_folder = "results"
 data_folder = "data/"
 
 

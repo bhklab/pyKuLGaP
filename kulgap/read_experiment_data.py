@@ -6,6 +6,7 @@ from .classes import TreatmentResponseExperiment, CancerModel, TreatmentConditio
 def read_pdx_data(file_path):
     """
     Reads in data from a file containing anonymised PDX data
+
     :param [string] file_path The name of the file:
     :return [list] A list of CancerModel objects:
     """
@@ -25,7 +26,7 @@ def read_pdx_data(file_path):
                 df_day = df_cat[df_cat.day == x]
                 y_list.append(df_day.volume)
             y_array = np.array(y_list)
-            new_cat = TreatmentCondition(cname, phlc_id=pname, x=x_array, y=y_array,
+            new_cat = TreatmentCondition(cname, source_id=pname, x=x_array, y=y_array,
                                          replicates=range(y_array.shape[1]),
                                          drug_start_day=df_cat.drug_start_day.iloc[0],
                                          is_control=df_cat.control.iloc[0] == 1)

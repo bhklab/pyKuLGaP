@@ -14,100 +14,87 @@ from .helpers import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_str
 from .read_experiment_data import read_pdx_data
 
 
+def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, rerun_kl_null=False):
+    """
+    Run the complete KuLGaP pipeline on a `TreatmentResponseExperiment` object. The experiment data is read into
+    Python from disk; all results are written in `results_path`.
 
 
+    :param results_path: [string] Path to the directory where results will be written.
+    :param data_path: [string] Path to the directory where the experiment data will be read from.
+    :param fit_gp:
+    :param draw_plots:
+    :param rerun_kl_null:
 
-
-
-
-
-
-
-
-ignore_list = []
-
-
-
-
-
-
-
-if __name__ == '__main__':
+    :return: [None] Writes files to disk
+    """
 
     gc.collect()
-
-    results_folder = "../results/"
-    data_folder = "../data/"
 
     # =============================================================================
     #     Definition of file links
     # =============================================================================
 
     ############WHERE THE INPUT DATA IS SAVED##########################################################
-    anon_filename = data_folder + "alldata_new.csv"
-    filename_crown = data_folder + "20180402_sheng_results.csv"
+    anon_filename = data_path + "alldata_new.csv"
+    filename_crown = data_path + "20180402_sheng_results.csv"
 
-    kl_null_filename = data_folder + "kl_control_vs_control.csv"
+    kl_null_filename = data_path + "kl_control_vs_control.csv"
     ############WHERE THE REPORT (THINGS THAT FAILED) IS SAVED#########################################
-    out_report = results_folder + 'report_all.txt'  # 'report_LPDX.txt'
+    out_report = results_path + 'report_all.txt'  # 'report_LPDX.txt'
 
     ############WHERE THE OUTPUT STATISTICS ARE SAVED##################################################
-    stats_outname = results_folder + "statistics_all.csv"  # "statistics_safeside.csv"
-    classifiers_outname = results_folder + "classifiers.csv"
-    agreements_outname = results_folder + "Fig2_agreements.csv"
-    agreements_outfigname = results_folder + "Fig2_agreements.pdf"
-    conservative_outname = results_folder + "Fig2_conservative.csv"
-    conservative_outfigname = results_folder + "Fig2_conservative.pdf"
-    scatterplot_outfigname = results_folder + "Fig2c"
+    stats_outname = results_path + "statistics_all.csv"  # "statistics_safeside.csv"
+    classifiers_outname = results_path + "classifiers.csv"
+    agreements_outname = results_path + "Fig2_agreements.csv"
+    agreements_outfigname = results_path + "Fig2_agreements.pdf"
+    conservative_outname = results_path + "Fig2_conservative.csv"
+    conservative_outfigname = results_path + "Fig2_conservative.pdf"
+    scatterplot_outfigname = results_path + "Fig2c"
 
-    fig1a_figname = results_folder + "fig1a.pdf"
-    fig1b_figname = results_folder + "fig1b.pdf"
-    fig1c_figname = results_folder + "fig1c.pdf"
-    fig1d_figname = results_folder + "fig1d.pdf"
+    fig1a_figname = results_path + "fig1a.pdf"
+    fig1b_figname = results_path + "fig1b.pdf"
+    fig1c_figname = results_path + "fig1c.pdf"
+    fig1d_figname = results_path + "fig1d.pdf"
 
-    fig3a_figname = results_folder + "fig3a.pdf"
-    fig3b_figname = results_folder + "fig3b.pdf"
+    fig3a_figname = results_path + "fig3a.pdf"
+    fig3b_figname = results_path + "fig3b.pdf"
 
-    fig4a_figname = results_folder + "fig4a.pdf"
-    fig4b_figname = results_folder + "fig4b.pdf"
-    fig4c_figname = results_folder + "fig4c.pdf"
-    fig4d_figname = results_folder + "fig4d.pdf"
+    fig4a_figname = results_path + "fig4a.pdf"
+    fig4b_figname = results_path + "fig4b.pdf"
+    fig4c_figname = results_path + "fig4c.pdf"
+    fig4d_figname = results_path + "fig4d.pdf"
 
-    fig5a_figname = results_folder + "fig5a.pdf"
-    fig5b_figname = results_folder + "fig5b.pdf"
-    fig5c_figname = results_folder + "fig5c.pdf"
-    fig5d_figname = results_folder + "fig5d.pdf"
+    fig5a_figname = results_path + "fig5a.pdf"
+    fig5b_figname = results_path + "fig5b.pdf"
+    fig5c_figname = results_path + "fig5c.pdf"
+    fig5d_figname = results_path + "fig5d.pdf"
 
-    supfig1_figname = results_folder + "sup-fig1.pdf"
+    supfig1_figname = results_path + "sup-fig1.pdf"
 
-    supfig2a_figname = results_folder + "sup-fig2a.pdf"
-    supfig2b_figname = results_folder + "sup-fig2b.pdf"
+    supfig2a_figname = results_path + "sup-fig2a.pdf"
+    supfig2b_figname = results_path + "sup-fig2b.pdf"
 
-    supfig3a_figname = results_folder + "sup-fig3a.pdf"
-    supfig3b_figname = results_folder + "sup-fig3b.pdf"
+    supfig3a_figname = results_path + "sup-fig3a.pdf"
+    supfig3b_figname = results_path + "sup-fig3b.pdf"
 
-    supfig4_figname = results_folder + "sup-fig4.pdf"
+    supfig4_figname = results_path + "sup-fig4.pdf"
 
-    supfig5a_figname = results_folder + "sup-fig5a.pdf"
-    supfig5b_figname = results_folder + "sup-fig5b.pdf"
+    supfig5a_figname = results_path + "sup-fig5a.pdf"
+    supfig5b_figname = results_path + "sup-fig5b.pdf"
 
-    supfig6a_figname = results_folder + "sup-fig6a.pdf"
-    supfig6b_figname = results_folder + "sup-fig6b.pdf"
+    supfig6a_figname = results_path + "sup-fig6a.pdf"
+    supfig6b_figname = results_path + "sup-fig6b.pdf"
 
-    histograms_out = results_folder + "KLDivergenceHistograms/"
+    histograms_out = results_path + "KLDivergenceHistograms/"
 
-    histograms_outfile = results_folder + "kl_histograms.csv"
+    histograms_outfile = results_path + "kl_histograms.csv"
 
-    KT_outname = results_folder + "Kendalls_tau.csv"
+    KT_outname = results_path + "Kendalls_tau.csv"
 
-    allplot_figname = results_folder + "allplot.pdf"
+    allplot_figname = results_path + "allplot.pdf"
 
     ###################################################################################################
-
-    fit_gp = True  # True # whether to fit GPs or not
-    draw_plots = True  # whether to make PDF with plots+stats about each model
-
-    rerun_kl_null = False  # whether to re-compute the KL null distribution
 
     if fit_gp is False:
         rerun_kl_null = False
@@ -127,7 +114,7 @@ if __name__ == '__main__':
     # =============================================================================
     # GP fitting and calculation of other parameters.
     # =============================================================================
-    #TODO: replace by fit_all_gps(all_patients, ... )
+    # TODO: replace by fit_all_gps(all_patients, ... )
     for i in range(0, len(all_patients)):
         print("Now dealing with patient %d of %d" % (i + 1, len(all_patients)))
 
@@ -182,14 +169,14 @@ if __name__ == '__main__':
                             assert (cur_case.kl_divergence is not None)
                         except Exception as e:
                             # NEED TO FIGURE OUT HOW TO REFER TO GENERIC ERROR
-                            failed_gp.append((cur_case.phlc_id, e))
+                            failed_gp.append((cur_case.source_id, e))
 
                     # MRECIST
                     try:
                         cur_case.calculate_mrecist()
                         assert (cur_case.mrecist is not None)
                     except ValueError as e:
-                        failed_mrecist.append((cur_case.phlc_id, e))
+                        failed_mrecist.append((cur_case.source_id, e))
                         print(e)
                         continue
 
@@ -215,7 +202,7 @@ if __name__ == '__main__':
                                                start), start)
 
                     except ValueError as e:
-                        failed_response_angle.append((cur_case.phlc_id, e))
+                        failed_response_angle.append((cur_case.source_id, e))
                         print(e)
                         continue
                     # compute AUC
@@ -318,7 +305,7 @@ if __name__ == '__main__':
 
                                     assert (cur_case.kl_p_value is not None)
                             except Exception as e:
-                                failed_p_value.append((cur_case.phlc_id, e))
+                                failed_p_value.append((cur_case.source_id, e))
                                 print(e)
                                 raise
     if fit_gp:
@@ -359,7 +346,7 @@ if __name__ == '__main__':
             for category in patient.categories.keys():
                 if 'Control' not in category:
                     cur_case = patient.categories[category]
-                    key = str(cur_case.phlc_id) + "*" + str(category)
+                    key = str(cur_case.source_id) + "*" + str(category)
                     stats_dict[key] = {'tumour_type': patient.tumour_type, 'mRECIST': None, 'num_mCR': None,
                                        'num_mPR': None,
                                        'num_mSD': None, 'num_mPD': None,
@@ -550,5 +537,5 @@ if __name__ == '__main__':
     c = ["Figure 3", "Figure 4AB", "Figure 4CD", "Figure 5AB", "Figure 5CD"]
     c += ["Supplementary Figure {}".format(i) for i in [1, 2, 3, 5, 6]]
     figure_classifiers.index = c
-    figure_classifiers.to_csv(results_folder + "figure_classifiers.csv")
+    figure_classifiers.to_csv(results_path + "figure_classifiers.csv")
     del c

@@ -15,11 +15,12 @@ from scipy.integrate import quad
 from scipy.stats import norm
 
 from .helpers import calculate_AUC, compute_response_angle, relativize, centre
-
+from .classes import CancerModel
 
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 
 class TreatmentResponseExperiment:
@@ -29,8 +30,199 @@ class TreatmentResponseExperiment:
     """
 
     def __init__(self, CancerModels):
+        """
+        Create a container object for storing `CancerModel` objects related to a a single treatment
+        response experiment.
+
+        :param CancerModels: [list of `CancerModel`s]
+        """
+        isCancerModel = [isinstance(item, CancerModel) for item in CancerModels]
+        if any(isCancerModel != True):
+            raise TypeError('One or more of the items in the supplied list are not `CancerModel` objects.')
         self.CancerModels = CancerModels
 
+
+
+class CancerModel:
+    """
+    The patient represents where the cancer sample comes from.
+    """
+
+    def __init__(self, name, phlc_sample=None, tumour_type=None,
+                 start_date=None, drug_start_day=None,
+                 end_date=None):
+        """
+        Initialize attributes.
+
+        :param name: name of the patient or PHLC Donor ID
+        :param phlc_sample: may not exist for all
+        :param start_date: of monitoring
+        :param drug_start_day: of drug administration
+        :param end_date: of monitoring
+        :param is_rdata: if legacy
+        """
+
+        self.name = name  # also source_id
+        self.categories = {}
+
+        self.phlc_sample = phlc_sample
+        self.start_date = start_date
+        self.drug_start_day = drug_start_day
+        self.end_date = end_date
+
+        self.tumour_type = tumour_type
+
+    def add_category(self, category):
+        """
+        Add a category to the CancerModel.
+
+        :param category: a TreatmentCondition object
+        """
+        self.categories[category.name] = category
+
+    def __repr__(self):
+        return ("\nCancerModel: %s\n"
+                "categories: %s \n"
+                "phlc sample: %s\n"
+                "start date: %s\n"
+                "drug start day: %s\n"
+                "end date: %s\n"
+                % (self.name, [key for key in self.categories], self.phlc_sample,
+                   self.start_date, self.drug_start_day, self.end_date))
+
+    def normalize_all_categories(self):
+        """
+        Normalizes data for each TreatmentCondition in the CancerModel object and calculates the start and end
+        parameters.
+        Note: this requires the presence of a control!
+        :return: [None]
+        """
+        control = self.categories["Control"]
+        for category_name, category in self.categories.items():
+            category.normalize_data()
+            if category_name != "Control":
+                category.start = max(category.find_start_date_index(), control.measurement_start)
+                category.end = min(control.measurement_end, category.measurement_end)
+                category.create_full_data(control)
+                assert (category.full_data != [])
+
+    def fit_all_gps(self):
+        """
+        Fits GPs to all Categories in the CancerModel object
+        :return: [None]
+        """
+        control = self.categories["Control"]
+        control.fit_gaussian_processes()
+        for category_name, category in self.categories.items():
+            if category_name != "Control":
+                category.fit_gaussian_processes(control=control)
+                category.calculate_kl_divergence(control)
+
+    def compute_other_measures(self, fit_gp, report_name=None):
+        """
+        Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control Categories of the CancerModel
+        :fit_gp: whether a GP has been fit.
+        :param report_name: Filename under which the error report will be saved
+        :return: [None]
+        """
+
+        failed_mrecist = []
+        failed_response_angle = []
+        failed_AUC = []
+        failed_tgi = []
+
+        control = self.categories["Control"]
+        for category_name, category in self.categories.items():
+            if category_name != "Control":
+                # MRECIST
+                try:
+                    category.calculate_mrecist()
+                    assert (category.mrecist is not None)
+                except ValueError as e:
+                    failed_mrecist.append((category.source_id, e))
+                    print(e)
+                    continue
+
+                # angle
+                try:
+                    category.calculate_response_angles(control)
+                    assert (category.response_angle is not None)
+                    category.response_angle_control = {}
+                    for i in range(len(control.replicates)):
+
+                        start = control.find_start_date_index() - control.measurement_start
+                        if start is None:
+                            raise TypeError("The 'start' parameter is None")
+                        else:
+                            category.response_angle_control[control.replicates[i]] = compute_response_angle(
+                                control.x_cut.ravel(),
+                                centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
+                                start)
+                            category.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
+                                control.x_cut.ravel(),
+                                relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
+                                           start), start)
+
+                except ValueError as e:
+                    failed_response_angle.append((category.source_id, e))
+                    print(e)
+                    continue
+
+                # compute AUC
+                try:
+                    category.calculate_auc(control)
+                    category.calculate_auc_norm(control)
+                    if fit_gp:
+                        category.calculate_gp_auc()
+                        category.auc_gp_control = calculate_AUC(control.x_cut, control.gp.predict(control.x_cut)[0])
+                    category.auc_control = {}
+                    start = max(category.find_start_date_index(), control.measurement_start)
+                    end = min(category.measurement_end, control.measurement_end)
+                    for i in range(len(control.replicates)):
+                        category.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
+                                                                                    control.y[i, start:end])
+                        category.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
+                                                                                         control.y_norm[i,
+                                                                                         start:end])
+                except ValueError as e:
+                    failed_AUC.append((category.source_id, e))
+                    print(e)
+                    continue
+
+                try:
+                    category.calculate_tgi(control)
+                except ValueError as e:
+                    failed_tgi.append((category.source_id, e))
+                    print(e)
+                    continue
+
+                    # PERCENT CREDIBLE INTERVALS
+                if fit_gp:
+                    category.calculate_credible_intervals(control)
+                    assert (category.credible_intervals != [])
+                    category.calculate_credible_intervals_percentage()
+                    assert (category.percent_credible_intervals is not None)
+
+                    # compute GP derivatives:
+                    category.compute_all_gp_derivatives(control)
+
+        with open(report_name, 'w') as f:
+
+            print("Errors calculating mRECIST:", file=f)
+            print(failed_mrecist, file=f)
+            print("\n\n\n", file=f)
+
+            print("Errors calculating angles:", file=f)
+            print(failed_response_angle, file=f)
+            print("\n\n\n", file=f)
+
+            print("Errors calculating angles:", file=f)
+            print(failed_AUC, file=f)
+            print("\n\n\n", file=f)
+
+            print("Errors calculating angles:", file=f)
+            print(failed_tgi, file=f)
+            print("\n\n\n", file=f)
 
 
 class TreatmentCondition:
@@ -55,13 +247,13 @@ class TreatmentCondition:
     It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, phlc_id=None, x=None, y=None, replicates=None, drug_start_day=None, is_control=False):
+    def __init__(self, name, source_id=None, x=None, y=None, replicates=None, drug_start_day=None, is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
         in set of PDX models derived from a single patient.
 
         :param name: [string] Name of the experimental/treatment condition (e.g., Control, Erlotinib, Paclitaxel, etc.)
-        :param phlc_id: [string] A unique identifier for the cancer model source. For PDX models this would be the
+        :param source_id: [string] A unique identifier for the cancer model source. For PDX models this would be the
             name of id of the patient from which the models were derived. For CCLs this would be the strain from which
             all cell cultures were derived.
         :param level: [ndarray] The level of the experimental condition. For example, the treatment exposure time
@@ -83,7 +275,7 @@ class TreatmentCondition:
         self.start = None
         self.end = None
 
-        self.phlc_id = phlc_id
+        self.source_id = source_id
         self.replicates = replicates
         self.is_control = is_control
         self.kl_p_cvsc = None
@@ -247,8 +439,8 @@ class TreatmentCondition:
         print("Now attempting to fit:")
         print("self.name:")
         print(self.name)
-        print("Self.phlc_id:")
-        print(self.phlc_id)
+        print("Self.source_id:")
+        print(self.source_id)
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
@@ -677,7 +869,7 @@ c       :param control: control TreatmentCondition object
             logger.info("Plotting with statistics for " + self.name)
 
             fig, ax = plt.subplots()
-            plt.title("Case (Blue) and Control (Red) Comparison of \n" + str(self.phlc_id) + " with " + str(self.name))
+            plt.title("Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
 
             # set xlim
             gp_x_limit = max(self.x) + 5
@@ -723,216 +915,15 @@ c       :param control: control TreatmentCondition object
         
         return ("\nName: %s\n"
                 "drug_start_day: %s\n"
-                "phlc_id: %s\n"
+                "source_id: %s\n"
                 # "replicates: %s\n"
                 "kl_divergence: %s\n"
                 "kl_p_value: %s\n"
                 "mrecist: %s\n"
                 "percent_credible_intervals: %s\n"
                 "rates_list: %s \n"
-                % (self.name, str(self.drug_start_day), self.phlc_id,# [r for r in self.replicates], 
+                % (self.name, str(self.drug_start_day), self.source_id,# [r for r in self.replicates],
                    self.kl_divergence, self.kl_p_value, self.mrecist, self.percent_credible_intervals, self.rates_list))
 
 
-class CancerModel:
-    """
-    The patient represents where the cancer sample comes from.
-    """
 
-    def __init__(self, name, phlc_sample=None, tumour_type=None,
-                 start_date=None, drug_start_day=None,
-                 end_date=None):
-        """
-        Initialize attributes.
-
-        :param name: name of the patient or PHLC Donor ID
-        :param phlc_sample: may not exist for all
-        :param start_date: of monitoring
-        :param drug_start_day: of drug administration
-        :param end_date: of monitoring
-        :param is_rdata: if legacy
-        """
-
-        self.name = name  # also phlc_id
-        self.categories = {}
-
-        self.phlc_sample = phlc_sample
-        self.start_date = start_date
-        self.drug_start_day = drug_start_day
-        self.end_date = end_date
-
-        self.tumour_type = tumour_type
-
-        
-
-    def add_category(self, category):
-        """
-        Add a category to the CancerModel.
-
-        :param category: a TreatmentCondition object
-        """
-        self.categories[category.name] = category
-
-    def __repr__(self):
-        return ("\nCancerModel: %s\n"
-                "categories: %s \n"
-                "phlc sample: %s\n"
-                "start date: %s\n"
-                "drug start day: %s\n"
-                "end date: %s\n"
-                % (self.name, [key for key in self.categories], self.phlc_sample,
-                   self.start_date, self.drug_start_day, self.end_date))
-    
-    
-    def normalize_all_categories(self):
-        """
-        Normalizes data for each TreatmentCondition in the CancerModel object and calculates the start and end
-        parameters.
-        Note: this requires the presence of a control!
-        :return: [None]
-        """
-        control = self.categories["Control"]
-        for category_name,category in self.categories.items():
-            category.normalize_data()
-            if category_name != "Control":
-                category.start = max(category.find_start_date_index(), control.measurement_start)
-                category.end = min(control.measurement_end, category.measurement_end)
-                category.create_full_data(control)
-                assert (category.full_data != [])
-            
-    
-    def fit_all_gps(self):
-        """
-        Fits GPs to all Categories in the CancerModel object
-        :return: [None]
-        """
-        control=self.categories["Control"]
-        control.fit_gaussian_processes()
-        for category_name,category in self.categories.items():
-            if category_name != "Control":
-                category.fit_gaussian_processes(control=control)
-                category.calculate_kl_divergence(control)
-                
-                
-    
-        
-    
-    def compute_other_measures(self,fit_gp,report_name=None):
-        """
-        Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control Categories of the CancerModel
-        :fit_gp: whether a GP has been fit.
-        :param report_name: Filename under which the error report will be saved
-        :return: [None]
-        """
-
-        failed_mrecist = []
-        failed_response_angle = []
-        failed_AUC = []
-        failed_tgi = []
-        
-        
-        control = self.categories["Control"]
-        for category_name,category in self.categories.items():
-            if category_name != "Control":
-                # MRECIST
-                try:
-                    category.calculate_mrecist()
-                    assert (category.mrecist is not None)
-                except ValueError as e:
-                    failed_mrecist.append((category.phlc_id, e))
-                    print(e)
-                    continue
-                
-                
-                # angle
-                try:
-                    category.calculate_response_angles(control)
-                    assert (category.response_angle is not None)
-                    category.response_angle_control = {}
-                    for i in range(len(control.replicates)):
-                        
-                        start = control.find_start_date_index() - control.measurement_start
-                        if start is None:
-                            raise TypeError("The 'start' parameter is None")
-                        else:
-                            category.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.x_cut.ravel(),
-                                centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
-                                start)
-                            category.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
-                                control.x_cut.ravel(),
-                                relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
-                                           start), start)
-    
-                except ValueError as e:
-                    failed_response_angle.append((category.phlc_id, e))
-                    print(e)
-                    continue
-                
-                
-                # compute AUC
-                try:
-                    category.calculate_auc(control)
-                    category.calculate_auc_norm(control)
-                    if fit_gp:
-                        category.calculate_gp_auc()
-                        category.auc_gp_control = calculate_AUC(control.x_cut, control.gp.predict(control.x_cut)[0])
-                    category.auc_control = {}
-                    start = max(category.find_start_date_index(), control.measurement_start)
-                    end = min(category.measurement_end, control.measurement_end)
-                    for i in range(len(control.replicates)):
-                        category.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                    control.y[i, start:end])
-                        category.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                         control.y_norm[i,
-                                                                                         start:end])
-                except ValueError as e:
-                    failed_AUC.append((category.phlc_id, e))
-                    print(e)
-                    continue
-                    
-                try:
-                    category.calculate_tgi(control)
-                except ValueError as e:
-                    failed_tgi.append((category.phlc_id, e))
-                    print(e)
-                    continue
-                
-                
-                            # PERCENT CREDIBLE INTERVALS
-                if fit_gp:
-                    category.calculate_credible_intervals(control)
-                    assert (category.credible_intervals != [])
-                    category.calculate_credible_intervals_percentage()
-                    assert (category.percent_credible_intervals is not None)
-    
-                    # compute GP derivatives:
-                    category.compute_all_gp_derivatives(control)
-                
-                
-                
-                
-        
-            
-        with open(report_name, 'w') as f:
-
-            print("Errors calculating mRECIST:", file=f)
-            print(failed_mrecist, file=f)
-            print("\n\n\n", file=f)
-            
-            print("Errors calculating angles:", file=f)
-            print(failed_response_angle, file=f)
-            print("\n\n\n", file=f)
-            
-            print("Errors calculating angles:", file=f)
-            print(failed_AUC, file=f)
-            print("\n\n\n", file=f)
-            
-            print("Errors calculating angles:", file=f)
-            print(failed_tgi, file=f)
-            print("\n\n\n", file=f)
-                       
-            
-            
-    
-        

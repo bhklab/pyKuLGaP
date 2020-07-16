@@ -11,17 +11,19 @@ def p_value(l1, l2):
     :param l2: The list of values on which the p-value calculation is based
     :return: The calculated list of p-values
     """
-
-    l = []
+    pval_list = []
     for y in l1:
-        l.append((len([x for x in l2 if x >= y]) + 1) / (len(l2) + 1))
-    return l
+        pval_list.append((len([x for x in l2 if x >= y]) + 1) / (len(l2) + 1))
+    return pval_list
 
 
-def get_all_cats(all_patients):
+
+def get_all_cats(treatment_response_exp):
     """
     Takes a list of patients and returns a dictionary of all categories in the list of patients,
-    :param all_patients: A list of CancerModel objects
+
+    :param treatment_respone_exp: [TreatmentResponseExperiment] A container holding the set of
+        cancer models associated with a `TreatmentResponseExperiment` class object.
     :return: A dictionary of the form {name:category}
     """
     d = {}
