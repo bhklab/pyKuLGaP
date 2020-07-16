@@ -5,9 +5,11 @@ from .classes import TreatmentResponseExperiment, CancerModel, TreatmentConditio
 
 def read_pdx_data(file_path):
     """
-    Reads in data from a file containing anonymised PDX data
-    :param [string] file_path The name of the file:
-    :return [list] A list of CancerModel objects:
+    Reads in data from a file containing anonymized PDX data
+
+    :param file_path: [string] The path to the data file
+    :return [TreatmentResponseExperiment] Containing a CancerModel object for each unique cancer model in the data file
+        (e.g., PDX for a single patient, cultures from a single CCL).
     """
     patients_list = []
     df = pd.read_csv(file_path, index_col=0)
@@ -25,7 +27,7 @@ def read_pdx_data(file_path):
                 df_day = df_cat[df_cat.day == x]
                 y_list.append(df_day.volume)
             y_array = np.array(y_list)
-            new_cat = TreatmentCondition(cname, phlc_id=pname, x=x_array, y=y_array,
+            new_cat = TreatmentCondition(cname, source_id=pname, x=x_array, y=y_array,
                                          replicates=range(y_array.shape[1]),
                                          drug_start_day=df_cat.drug_start_day.iloc[0],
                                          is_control=df_cat.control.iloc[0] == 1)
@@ -37,8 +39,10 @@ def read_pdx_data(file_path):
             new_patient.categories[cname] = new_cat
         new_patient.normalize_all_categories()
         patients_list.append(new_patient)
+        pdx_experiment = TreatmentResponseExperiment(CancerModels=patients_list)
 
-    return patients_list
+    return pdx_experiment
+
 
 ## -- Local helper methods
 

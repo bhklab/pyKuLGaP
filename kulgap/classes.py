@@ -14,13 +14,13 @@ from GPy.models import GPRegression
 from scipy.integrate import quad
 from scipy.stats import norm
 
+import pandas as pd
+import numpy as np
 from .helpers import calculate_AUC, compute_response_angle, relativize, centre
-from .classes import CancerModel
 
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 class TreatmentResponseExperiment:
@@ -29,17 +29,34 @@ class TreatmentResponseExperiment:
 
     """
 
-    def __init__(self, CancerModels):
+    def __init__(self, cancer_model_list):
         """
-        Create a container object for storing `CancerModel` objects related to a a single treatment
+        Create a container for storing `CancerModel` objects related to a a single treatment
         response experiment.
 
-        :param CancerModels: [list of `CancerModel`s]
+        :param cancer_model_list: [list]
         """
-        isCancerModel = [isinstance(item, CancerModel) for item in CancerModels]
-        if any(isCancerModel != True):
+        isCancerModel = [isinstance(item, CancerModel) for item in cancer_model_list]
+        if False in isCancerModel:
             raise TypeError('One or more of the items in the supplied list are not `CancerModel` objects.')
-        self.CancerModels = CancerModels
+        model_names = [model.name for model in cancer_model_list]
+        self.data = pd.DataFrame({'model_names': model_names, 'cancer_models': cancer_model_list})
+
+    def __repr__(self):
+        return f'Cancer Models: {self.model_names()}\nTreatment Categories: {self.all_treatment_categories()}\n'
+
+    def model_names(self):
+        """
+        Getter for the names of the models in a `TreatmentResponseExperiment` object.
+
+        :return: [pd.Series] containing the model names
+        """
+        return self.data.model_names.unique()
+
+    def all_treatment_categories(self):
+        treatment_conditons = [item for sublist in [model.categories for model in self.data.cancer_models] for
+                               item in sublist]
+        return np.unique(np.array(treatment_conditons))
 
 
 
@@ -48,24 +65,24 @@ class CancerModel:
     The patient represents where the cancer sample comes from.
     """
 
-    def __init__(self, name, phlc_sample=None, tumour_type=None,
+    def __init__(self, name, source_id=None, tumour_type=None,
                  start_date=None, drug_start_day=None,
                  end_date=None):
         """
         Initialize attributes.
 
         :param name: name of the patient or PHLC Donor ID
-        :param phlc_sample: may not exist for all
+        :param source_id: may not exist for all
         :param start_date: of monitoring
         :param drug_start_day: of drug administration
         :param end_date: of monitoring
         :param is_rdata: if legacy
         """
 
-        self.name = name  # also source_id
+        self.name = name
         self.categories = {}
 
-        self.phlc_sample = phlc_sample
+        self.source_id = source_id
         self.start_date = start_date
         self.drug_start_day = drug_start_day
         self.end_date = end_date
@@ -412,6 +429,7 @@ class TreatmentCondition:
         :param control [Boolean] whether the category is from the control group:
         :return [None] Writes the calculated value into self.tgi
         """
+
         def TGI(yt, yc, i, j):
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
@@ -465,8 +483,6 @@ class TreatmentCondition:
 
             self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
-
-
     def calculate_kl_divergence(self, control):
         """
         Calculates the KL divergence between the GPs fit for both the
@@ -504,8 +520,6 @@ class TreatmentCondition:
 
         logger.info(self.kl_divergence)
 
-
-
     @staticmethod
     def __fit_single_gaussian_process(x, y_norm, num_restarts=7):
         """
@@ -529,8 +543,6 @@ class TreatmentCondition:
         gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
         return gp, kernel
-
-    
 
     @staticmethod
     def __relativize(y, start):
@@ -869,7 +881,8 @@ c       :param control: control TreatmentCondition object
             logger.info("Plotting with statistics for " + self.name)
 
             fig, ax = plt.subplots()
-            plt.title("Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
+            plt.title(
+                "Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
 
             # set xlim
             gp_x_limit = max(self.x) + 5
@@ -912,7 +925,7 @@ c       :param control: control TreatmentCondition object
 
         :return [string] The representation:
         """
-        
+
         return ("\nName: %s\n"
                 "drug_start_day: %s\n"
                 "source_id: %s\n"
@@ -922,8 +935,5 @@ c       :param control: control TreatmentCondition object
                 "mrecist: %s\n"
                 "percent_credible_intervals: %s\n"
                 "rates_list: %s \n"
-                % (self.name, str(self.drug_start_day), self.source_id,# [r for r in self.replicates],
+                % (self.name, str(self.drug_start_day), self.source_id,  # [r for r in self.replicates],
                    self.kl_divergence, self.kl_p_value, self.mrecist, self.percent_credible_intervals, self.rates_list))
-
-
-

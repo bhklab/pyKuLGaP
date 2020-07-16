@@ -4,18 +4,16 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pylab as pl, patches as mp
 from matplotlib.backends.backend_pdf import PdfPages
+from scipy import stats
 from scipy.stats import mannwhitneyu
+from sklearn.metrics import accuracy_score
 
-from .create_heatmaps import create_agreements, create_FDR, create_KT
 from .helpers import dict_to_string, calculate_null_kl
-
 
 sns.set(style="ticks")
 
 
-
-
-def create_measurement_dict(all_patients,kl_null_filename):
+def create_measurement_dict(all_patients, kl_null_filename):
     """
     Creates a dictionary of measurements from a list of CancerModel objects.
     The keys of the measurement dictionary are the experiments, the corresponding value
@@ -26,8 +24,8 @@ def create_measurement_dict(all_patients,kl_null_filename):
     :return:  [dict] The dictionary of measurements
     """
     stats_dict = {}
-    kl_control_vs_control = calculate_null_kl(filename= kl_null_filename)
-    for i,patient in enumerate(all_patients):
+    kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
+    for i, patient in enumerate(all_patients):
         control = patient.categories['Control']
         #     control.normalize_data()
         #     control.fit_gaussian_processes()
@@ -60,14 +58,14 @@ def create_measurement_dict(all_patients,kl_null_filename):
                 except Exception as e:
                     print(e)
                     continue
-                
+
                 if cur_case.kl_divergence is not None:
                     cur_case.kl_p_value = (len([x for x in kl_control_vs_control["list"] if
-                                                    x >= cur_case.kl_divergence]) + 1) / (
-                                                      len(kl_control_vs_control["list"]) + 1)
+                                                x >= cur_case.kl_divergence]) + 1) / (
+                                                  len(kl_control_vs_control["list"]) + 1)
 
                     cur_case.kl_p_cvsc = 1 - kl_control_vs_control["smoothed"].cdf(
-                            [cur_case.kl_divergence])
+                        [cur_case.kl_divergence])
 
                 num_replicates = len(cur_case.replicates)
                 stats_dict[key]['mRECIST'] = dict_to_string(cur_case.mrecist)
@@ -109,9 +107,8 @@ def create_measurement_dict(all_patients,kl_null_filename):
                 stats_dict[key]['average_angle_control'] = cur_case.average_angle_control
                 stats_dict[key]['average_angle_rel_control'] = cur_case.average_angle_rel_control
     return stats_dict
-    
-    
-    
+
+
 def create_measurement_df(all_patients):
     """
     Creates a DataFrame of measurements from a list of CancerModel objects.
@@ -121,7 +118,8 @@ def create_measurement_df(all_patients):
     :return:  [DataFrame] The DataFrame of measurements
     """
     stats_dict = create_measurement_dict(all_patients)
-    return pd.DataFrame.from_dict(stats_dict).transpose() 
+    return pd.DataFrame.from_dict(stats_dict).transpose()
+
 
 def plusnone(a, b):
     """
@@ -133,8 +131,6 @@ def plusnone(a, b):
     if (a is None) or (b is None):
         return None
     return a + b
-
-
 
 
 def dictvals(dictionary):
@@ -311,7 +307,6 @@ def plot_gp(case, control, savename):
 
 
 def plot_category(case, control, means=None, savename="figure.pdf", normalised=True):
-
     """
     Fully plot a category
     :param case: the category to be plotted. Not allowed to be None
@@ -380,7 +375,8 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
     return fig
 
 
-def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
+def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05,
+                    tgi_thresh=0.6):
     """
     Plot a long PDF, one page per patient in all_patients
     :param outname: The name under which the PDF will be saved
@@ -393,7 +389,7 @@ def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fi
     :param p_val_kl: The p-value for the KuLGaP calculation
     :param tgi_thresh: The threshold for calling a TGI response.
     """
-    all_kl = calculate_null_kl(filename= kl_null_filename)
+    all_kl = calculate_null_kl(filename=kl_null_filename)
     with PdfPages(outname) as pdf:
         for n, patient in enumerate(all_patients):
             control = patient.categories["Control"]
@@ -425,7 +421,7 @@ def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fi
                     axes[1, 0].plot(cur_cat.x[start:end], cur_cat.y_norm.mean(axis=0)[start:end], '.r-')
                     if control.y_norm is not None:
                         axes[1, 0].plot(control.x[start:end], control.y_norm.mean(axis=0)[start:end], '.b-')
-                    
+
                     axes[1, 1].set_title("Pointwise KL divergence")
 
                     if fit_gp:
@@ -477,8 +473,6 @@ def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fi
                     plt.close()
 
 
-
-
 def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     """
     Computes the DF of classifications (which measures call a Responder) from the continuous statistics
@@ -492,10 +486,10 @@ def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
 
     responses["kulgap"] = stats_df.kl_p_cvsc.apply(lambda x: tsmaller(x, p_val, y=1, n=-1, na=0))
     responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(lambda x: tsmaller(x, 0.5, y=1, n=-1, na=0))
-    
+
     responses["Angle"] = stats_df.apply(
         lambda row: mw_letter_from_strings(row["response_angle_rel"], row["response_angle_rel_control"], pval=p_val,
-                                            y=1, n=-1, na=0), axis=1)
+                                           y=1, n=-1, na=0), axis=1)
     responses["AUC"] = stats_df.apply(
         lambda row: mw_letter_from_strings(row["auc_norm"], row["auc_control_norm"], pval=p_val, y=1, n=-1, na=0),
         axis=1)
@@ -537,9 +531,6 @@ def get_classification_dict_with_patients(all_patients, stats_df, p_val, all_kl,
     return predict
 
 
-
-
-
 def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname):
     """
     Creates and plots the agreement matrix between measures
@@ -559,7 +550,7 @@ def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements
     plt.savefig(agreements_outfigname)
 
 
-#TODO: this function to be removed
+# TODO: this function to be removed
 # def create_and_plot_conservative(classifiers_df, conservative_outfigname, conservative_outname):
 #     """
 
@@ -606,7 +597,8 @@ def create_and_save_KT(classifiers_df, KT_outname):
     kts.to_csv(KT_outname)
 
 
-def plot_histogram(list_to_be_plotted, varname, marked=None, savename=None, smoothed=None, x_min=None, x_max=None, dashed=None,
+def plot_histogram(list_to_be_plotted, varname, marked=None, savename=None, smoothed=None, x_min=None, x_max=None,
+                   dashed=None,
                    solid=None):
     """
     Plots the histogram of list_to_be_plotted, with an asterix and an arrow at marked
@@ -724,14 +716,10 @@ def plot_histograms_2c(stats_df, classifiers_df, savename):
     g.despine(bottom=True, left=True)
     plt.savefig("{}.pdf".format(savename))
 
+
 ## -- create_heatmaps.py
 
-import numpy as np
-import pandas as pd
-from scipy import stats
-from sklearn.metrics import accuracy_score
-
-#TODO THIS function is to be removed
+# TODO THIS function is to be removed
 # def conservative_score(l1, l2, n, y):
 #     """
 
@@ -761,7 +749,6 @@ from sklearn.metrics import accuracy_score
 #     return (l1.map(lambda x: convert(x, n, y)).sum() - l2.map(lambda x: convert(x, n, y)).sum()) / 2 / len(l1)
 
 
-
 def create_agreements(responders_df):
     """
     Creates the agreement matrix (percentage of same calls) between the different measures.
@@ -776,7 +763,7 @@ def create_agreements(responders_df):
     return agreements
 
 
-#TODO ThIS function is to be removed
+# TODO ThIS function is to be removed
 ## TODO:: Consider more informative function name. Suggestion - find_conservative_aggreements
 
 # def create_conservative(agreements_df):
@@ -803,11 +790,12 @@ def create_FDR(responders_df):
     FDR_df = pd.DataFrame(np.zeros((n, n)))
     for row in range(n):
         for col in range(n):
-            if responders_df[responders_df.iloc[:, col] == 1].shape[0]!=0:
-                FDR_df.iloc[row, col] = responders_df[(responders_df.iloc[:, row] == -1) & (responders_df.iloc[:, col] == 1)].shape[0] / \
-                                    responders_df[responders_df.iloc[:, col] == 1].shape[0]
+            if responders_df[responders_df.iloc[:, col] == 1].shape[0] != 0:
+                FDR_df.iloc[row, col] = \
+                responders_df[(responders_df.iloc[:, row] == -1) & (responders_df.iloc[:, col] == 1)].shape[0] / \
+                responders_df[responders_df.iloc[:, col] == 1].shape[0]
             else:
-                FDR_df.iloc[row, col] =np.nan
+                FDR_df.iloc[row, col] = np.nan
 
     FDR_df = FDR_df.T  # transpose
     FDR_df.columns = responders_df.columns
@@ -821,7 +809,9 @@ def create_KT(responders_df):
     :param responders_df: [DataFrame] The dataframe of responders: one column per measure, one row per experiment
     :return [DataFrame]: The matrix of Kendall tau results
     """
-    kts_df = pd.DataFrame([[stats.kendalltau(responders_df[x], responders_df[y])[0] for x in responders_df.columns] for y in responders_df.columns])
+    kts_df = pd.DataFrame(
+        [[stats.kendalltau(responders_df[x], responders_df[y])[0] for x in responders_df.columns] for y in
+         responders_df.columns])
     kts_df.columns = responders_df.columns
     kts_df.index = responders_df.columns
     return kts_df

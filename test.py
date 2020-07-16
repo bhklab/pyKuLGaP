@@ -7,6 +7,7 @@ Created on Tue Jul 14 09:07:30 2020
 """
 
 
+
 from collections import defaultdict
 
 import numpy as np
@@ -14,11 +15,10 @@ import pandas as pd
 import statsmodels.api as sm
 
 from kulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
-    plot_category, plot_histogram, \
-    create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
+    plot_category, plot_histogram, create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
         create_measurement_dict, create_measurement_df
 
-from kulgap.read_experiment_data import read_pdx_data
+from kulgap.io import read_pdx_data
 
 
 results_folder = "results"
@@ -87,7 +87,7 @@ allplot_figname = results_folder + "allplot.pdf"
 
 
 
-anon_filename = data_folder + "alldata_small.csv"
+anon_filename = data_folder + "alldata_new.csv"
 
 failed_plot = []
 failed_gp=[]

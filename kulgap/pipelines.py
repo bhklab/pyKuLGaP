@@ -11,7 +11,7 @@ from .plotting import plot_everything, create_and_plot_agreements, get_classific
 from .helpers import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
     relativize, centre, compute_response_angle
 
-from .read_experiment_data import read_pdx_data
+from .io import read_pdx_data
 
 
 def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, rerun_kl_null=False):

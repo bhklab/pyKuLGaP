@@ -5,14 +5,15 @@ from .classes import TreatmentResponseExperiment, CancerModel, TreatmentConditio
 
 def read_pdx_data(file_path):
     """
-    Reads in data from a file containing anonymised PDX data
+    Reads in data from a file containing anonymized PDX data
 
-    :param [string] file_path The name of the file:
-    :return [list] A list of CancerModel objects:
+    :param file_path: [string] The path to the data file
+    :return [TreatmentResponseExperiment] Containing a CancerModel object for each unique cancer model in the data file
+        (e.g., PDX for a single patient, cultures from a single CCL).
     """
     patients_list = []
     df = pd.read_csv(file_path, index_col=0)
-    for pname in df.patient.unique():
+    for pname in df.patient.unique()[1:5]:
         df_pat = df[df.patient == pname]
         new_patient = CancerModel(pname, tumour_type="no_tumour_type",
                                   start_date=None, drug_start_day=df_pat.drug_start_day.iloc[0],
@@ -38,8 +39,19 @@ def read_pdx_data(file_path):
             new_patient.categories[cname] = new_cat
         new_patient.normalize_all_categories()
         patients_list.append(new_patient)
+        pdx_experiment = TreatmentResponseExperiment(patients_list)
 
-    return patients_list
+    return pdx_experiment
+
+
+## TODO:: Build experiment object using pandas groupby statements
+def read_to_treat_resp_exp(file_path):
+     df = pd.read_csv(file_path, index_col=0)
+     def _group_by_category(df):
+         return dict(zip(df.category.unique(), [group for _, group in df.groupby(['category'])]))
+     cancer_models = dict(zip(df.patient.unique(), df.groupby(['patient']).apply(_group_by_category)))
+
+
 
 ## -- Local helper methods
 
