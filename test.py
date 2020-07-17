@@ -104,6 +104,7 @@ fit_gp=True
 
 all_patients = read_pdx_data(anon_filename)
 
+
 for model_name, CancerModel in all_patients:
     if fit_gp:
         CancerModel.fit_all_gps()
@@ -125,7 +126,7 @@ full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,kl_nu
 
 
 
-#TODO: re-write so it only needs full_stats_df (and no longer all_patients)
+#TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
 classifiers_df = get_classification_df(full_stats_df)
 
 

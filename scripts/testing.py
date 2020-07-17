@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 import os
 
 from kulgap.classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition

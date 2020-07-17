@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
+import json
 import re
 
 from .classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition
+## TODO:: Why does this function live in plotting?
+from .plotting import create_measurement_dict
 
 def read_pdx_data(file_path):
     """
@@ -48,17 +51,19 @@ def read_pdx_data(file_path):
     pdx_experiment = TreatmentResponseExperiment(pdx_model_list)
     return pdx_experiment
 
-def read_cancer_model_from_csv_buffer(file_buffer):
+def read_pdx_from_csv_buffer(file_buffer):
     df = pd.read_csv(file_buffer)
 
     # -- build the TreatmentCondition objects from the df
     control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     control = TreatmentCondition('Control', source_id='from_webapp',
                                  level=df.Time.to_numpy(), response=control_response,
+                                 replicates=list(range(control_response.shape[0])),
                                  treatment_start_date=min(df.Time), is_control=True)
 
     treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     treatment = TreatmentCondition('Control', source_id='from_webapp',
+                                   replicates=list(range(treatment_response.shape[0])),
                                    level=df.Time.to_numpy(), response=treatment_response,
                                    treatment_start_date=min(df.Time), is_control=False)
 
@@ -73,8 +78,10 @@ def read_cancer_model_from_csv_buffer(file_buffer):
                                end_date=max(df.Time))
 
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
-    patient_json = treatment_response_experiment.to_dict(recursive=True)
-    stats_json = treatment_response.
+    patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
+    stats_json = pd.DataFrame.from_dict(
+        create_measurement_dict(treatment_response_experiment.treatment_conditions)
+    ).transpose().to_json()
 
 
 

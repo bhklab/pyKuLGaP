@@ -8,7 +8,7 @@ import statsmodels.api as sm
 from .plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
     plot_category, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-from .helpers import get_all_cats, calculate_AUC, calculate_null_kl, dict_to_string, \
+from .helpers import get_all_treatment_conditions, calculate_AUC, calculate_null_kl, dict_to_string, \
     relativize, centre, compute_response_angle
 
 from .io import read_pdx_data
@@ -114,12 +114,12 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
     # =============================================================================
     # GP fitting and calculation of other parameters.
     # =============================================================================
-    # TODO: replace by fit_all_gps(all_patients, ... )
+    # TODO: replace by fit_all_gps(all_cancer_models, ... )
     for i in range(0, len(all_patients)):
         print("Now dealing with patient %d of %d" % (i + 1, len(all_patients)))
 
         if (allowed_list == []) or (all_patients[i].name in allowed_list):
-            # if all_patients[i].name not in ignore_list:
+            # if all_cancer_models[i].name not in ignore_list:
             print("Num failed mRECISTS: " + str(len(failed_mrecist)))
             print("Num failed plots: " + str(len(failed_plot)))
             print("Num failed p values: " + str(len(failed_p_value)))
@@ -129,7 +129,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
             print("CancerModel: " + str(patient.name))
 
             # need to ensure that we've found and processed the control.
-            control = patient.categories['Control']
+            control = patient.treatment_condition['Control']
             control.normalize_data()
 
             if fit_gp:
@@ -137,16 +137,16 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 assert (control.name is not None)
                 assert (control.x is not None)
                 assert (control.y is not None)
-                assert (control.y_norm is not None)
+                assert (control.response_norm is not None)
                 assert (control.drug_start_day is not None)
                 assert (control.replicates is not None)
                 assert (control.gp is not None)
                 assert (control.gp_kernel is not None)
 
-            for category in patient.categories.keys():
+            for category in patient.treatment_condition.keys():
                 if category != 'Control':
 
-                    cur_case = patient.categories[category]
+                    cur_case = patient.treatment_condition[category]
                     cur_case.normalize_data()
                     cur_case.start = max(cur_case.find_start_date_index(), control.measurement_start)
                     cur_case.end = min(control.measurement_end, cur_case.measurement_end)
@@ -219,7 +219,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                             cur_case.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
                                                                                         control.y[i, start:end])
                             cur_case.auc_control_norm[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                             control.y_norm[i,
+                                                                                             control.response_norm[i,
                                                                                              start:end])
                     except ValueError as e:
                         print(e)
@@ -241,22 +241,22 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
 
     # COMPUTATION OF P-VALUES IN SEPARATE ITERATION: WE FIRST NEED TO HAVE FIT ALL THE GPs
 
-    # NOW CYCLE AGAIN THROUGH all_patients TO COMPUTE kl p-values:
+    # NOW CYCLE AGAIN THROUGH all_cancer_models TO COMPUTE kl p-values:
 
     categories_by_drug = defaultdict(list)
     failed_by_drug = defaultdict(list)
     for patient in all_patients:
-        for key in patient.categories.keys():
-            if patient.categories[key].gp:
-                categories_by_drug[key].append(patient.categories[key])
+        for key in patient.treatment_condition.keys():
+            if patient.treatment_condition[key].gp:
+                categories_by_drug[key].append(patient.treatment_condition[key])
             else:
-                failed_by_drug[key].append(patient.categories[key].name)
+                failed_by_drug[key].append(patient.treatment_condition[key].name)
 
     fig_count = 0
     cur_case.kl_p_cvsc = None
 
     print("Now computing KL divergences between controls for kl_control_vs_control - this may take a moment")
-    controls = [patient.categories["Control"] for patient in all_patients]
+    controls = [patient.treatment_condition["Control"] for patient in all_patients]
     if rerun_kl_null:
         kl_control_vs_control = calculate_null_kl(controls, None)
     else:
@@ -275,10 +275,10 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 patient = all_patients[i]
                 print("CancerModel: ", patient.name, "(", i + 1, "of", len(all_patients), ")")
                 if patient.name not in ignore_list:
-                    for category in patient.categories.keys():
+                    for category in patient.treatment_condition.keys():
                         if category != 'Control':
                             print("TreatmentCondition: ", category)
-                            cur_case = patient.categories[category]
+                            cur_case = patient.treatment_condition[category]
 
                             # IF FIRST OCCURRENCE OF DRUG: COMPUTE HISTOGRAM OF KL DIVERGENCES
                             # if cur_case.name not in kl_histograms:
@@ -315,7 +315,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 outfile.write(",".join(map(str, value)))
                 outfile.write("\n")
     print("Done computing KL p-values, saved to {}".format(histograms_outfile))
-    # all_kl = [x["case"].kl_divergence for x in get_all_cats(all_patients).values() if
+    # all_kl = [x["case"].kl_divergence for x in get_all_cats(all_cancer_models).values() if
     #           str(x["case"].kl_divergence) != "nan"]
 
     with open(out_report, 'w') as f:
@@ -339,11 +339,11 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
         if (allowed_list == []) or (all_patients[i].name in allowed_list):
             patient = all_patients[i]
 
-            control = patient.categories['Control']
+            control = patient.treatment_condition['Control']
             #     control.normalize_data()
             #     control.fit_gaussian_processes()
 
-            for category in patient.categories.keys():
+            for category in patient.treatment_condition.keys():
                 if 'Control' not in category:
                     cur_case = patient.categories[category]
                     key = str(cur_case.source_id) + "*" + str(category)

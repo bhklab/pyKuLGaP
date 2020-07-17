@@ -17,23 +17,22 @@ def p_value(l1, l2):
     return pval_list
 
 
-
-def get_all_cats(treatment_response_exp):
+def get_all_treatment_conditions(treatment_response_experiment):
     """
     Takes a list of patients and returns a dictionary of all categories in the list of patients,
 
-    :param treatment_respone_exp: [TreatmentResponseExperiment] A container holding the set of
-        cancer models associated with a `TreatmentResponseExperiment` class object.
-    :return: A dictionary of the form {name:category}
+    :param treatment_response_experiment: [TreatmentResponseExperiment] A container holding the set of
+        `CancerModel` objects associated with a treatment response experiment.
+    :return: [dict] A dictionary of the form {name: treatment_condition}
     """
-    d = {}
-    for patient in all_patients:
-        for n, patient in enumerate(all_patients):
-            control = patient.categories["Control"]
-            for cat, cur_cat in patient.categories.items():
-                if cat != "Control":
-                    d[str(patient.name) + "*" + str(cat)] = {"case": cur_cat, "control": control}
-    return d
+    treatment_condition_dict = {}
+    for _, cancer_model in treatment_response_experiment:
+        control = cancer_model.treatment_conditions.get("Control")
+        for condition_name, treatment_condition in cancer_model.treatment_conditions:
+            if condition_name != "Control":
+                treatment_condition_dict[str(cancer_model.name) + "-" + str(condition_name)] = \
+                    {"case": treatment_condition, "control": control}
+    return treatment_condition_dict
 
 
 def calculate_AUC(x, y):
@@ -75,19 +74,19 @@ def kl_divergence(case, control):
     return kl_divergence
 
 
-def cross_kl_divergences(cat_list):
+def cross_kl_divergences(treatment_condition_list):
     """
     takes a list of categories and computes KL(x,y) for all x and y in the list
-    :param cat_list: A list of TreatmentCondition object
+    :param treatment_condition_list: A list of TreatmentCondition objects
     :return: The list of all KL(x,y) as x, y range over cat_list
     """
     kl_list = []
-    cl = len(cat_list)
+    cl = len(treatment_condition_list)
 
     for i in range(cl):
-        print("done %d out of %d" % (i, cl))
+        print(f"done {i} out of {cl}")
         for j in range(i):
-            new_kl = kl_divergence(cat_list[i], cat_list[j])
+            new_kl = kl_divergence(treatment_condition_list[i], treatment_condition_list[j])
             if (new_kl is not None) and (str(new_kl) != "nan") and str(new_kl) != "inf":
                 kl_list.append(new_kl)
     return kl_list
@@ -106,16 +105,18 @@ def cv_smoothing(list_to_be_smoothed):
 def calculate_null_kl(treatment_condition_list=None, filename=None):
     """
     Calculates the smoothed null KL distribution. One of the two parameters must be non-null
-    :param treament_condition_list: [list] The list of treatment condition from which the null kl is to be calculated.
+    :param treatment_condition_list: [list] The list of treatment condition from which the null kl is to be calculated.
     :param filename: If None, calculate from category_list. Else read in from file_path
     :return: [list] the list of values and the smoothed object
     """
-    if filename is None:
-        null_kl_data = cross_kl_divergences(treament_condition_list)
-    else:
+    if filename is None and treatment_condition_list is not None:
+        null_kl_data = cross_kl_divergences(treatment_condition_list)
+    elif filename is not None and treatment_condition_list is None:
         null_kl_data = list(pd.read_csv(filename, header=None)[0])
+    else:
+        raise ValueError("Only one of `filename` or `treatment_condition_list` can be passed as a parameter!")
     smoothed_null_kl = cv_smoothing(null_kl_data)
-    return {"list": l, "smoothed": dens}
+    return {"list": null_kl_data, "smoothed": smoothed_null_kl}
 
 
 def dict_to_string(dictionary):
@@ -127,8 +128,7 @@ def dict_to_string(dictionary):
     return "_".join([str(key) + ":" + str(value) for key, value in dictionary.items()])
 
 
-
-def remove_extremal_nas(y, replacement_value): 
+def remove_extremal_nas(y, replacement_value):
     """
     Replace leading and trailing n/a values in the rows of y by replacement_value
     Return the modified y, the start (first measurement) and the end (last measurement) dates
@@ -186,7 +186,6 @@ def centre(y, start):
     :return [ndarray] the modified array
     """
     return y - y[start]
-
 
 
 def compute_response_angle(x, y, start):

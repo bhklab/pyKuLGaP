@@ -22,13 +22,13 @@ def read_pdx_data(file_path):
         for cname in df_pat.category.unique():
             df_cat = df_pat[df_pat.category == cname]
             x_array = np.array([parse_string_to_ndarray(x) for x in df_cat.day.unique()])
-            y_list = []
+            response_list = []
             for x in df_cat.day.unique():
                 df_day = df_cat[df_cat.day == x]
-                y_list.append(df_day.volume)
-            y_array = np.array(y_list)
-            new_cat = TreatmentCondition(cname, source_id=pname, x=x_array, y=y_array,
-                                         replicates=range(y_array.shape[1]),
+                response_list.append(df_day.volume)
+            response_array = np.array(response_list)
+            new_cat = TreatmentCondition(cname, source_id=pname, x=x_array, y=response_array,
+                                         replicates=range(response_array.shape[1]),
                                          drug_start_day=df_cat.drug_start_day.iloc[0],
                                          is_control=df_cat.control.iloc[0] == 1)
 
@@ -36,7 +36,7 @@ def read_pdx_data(file_path):
             new_cat.measurement_end = df_cat.measurement_end.iloc[0]
             new_cat.x_cut = new_cat.x[new_cat.measurement_start:new_cat.measurement_end + 1]
 
-            new_patient.categories[cname] = new_cat
+            new_patient.treatment_condition[cname] = new_cat
         new_patient.normalize_all_categories()
         patients_list.append(new_patient)
         pdx_experiment = TreatmentResponseExperiment(CancerModels=patients_list)

@@ -13,26 +13,31 @@ from .helpers import dict_to_string, calculate_null_kl
 sns.set(style="ticks")
 
 
-def create_measurement_dict(all_models, kl_null_filename):
+def create_measurement_dict(all_models, kl_null_filename=None):
     """
     Creates a dictionary of measurements from a list of CancerModel objects.
     The keys of the measurement dictionary are the experiments, the corresponding value
     is a dictionary whose keys are the names of the measurements and ve values the corresponding
 
     values of the measurement for that experiment.
-    :param all_patients: The list of CancerModel objects
+    :param all_models: A list of CancerModel objects
     :param kl_null_filename: Name of the file from which the KL null distribution is read
     :return:  [dict] The dictionary of measurements
     """
     stats_dict = {}
-    kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
-    for name, cancer_model in all_models:
-        control = cancer_model.categories['Control']
+    if kl_null_filename is not None:
+        kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
+    else:
+        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[model.treatment_conditions.get("Control")
+                                                                            for model in all_models])
 
-        for category in cancer_model.categories.keys():
-            if 'Control' not in category:
-                cur_case = cancer_model.categories[category]
-                key = str(cur_case.source_id) + "*" + str(category)
+    for name, cancer_model in all_models:
+        control = cancer_model.treatment_conditions.get('Control')
+
+        for treatment_condition in cancer_model.treatment_conditions.keys():
+            if 'Control' not in treatment_condition:
+                cur_case = cancer_model.treatment_conditions.get(treatment_condition)
+                key = str(cur_case.source_id) + "*" + str(treatment_condition)
                 stats_dict[key] = {'tumour_type': cancer_model.tumour_type, 'mRECIST': None, 'num_mCR': None,
                                    'num_mPR': None,
                                    'num_mSD': None, 'num_mPD': None,
@@ -49,7 +54,7 @@ def create_measurement_dict(all_models, kl_null_filename):
                                    'number_replicates': len(cur_case.replicates),
                                    'number_replicates_control': len(control.replicates),
                                    "tgi": cur_case.tgi}
-                stats_dict[key]['drug'] = category
+                stats_dict[key]['drug'] = treatment_condition
 
                 try:
                     cur_case.calculate_mrecist()
@@ -108,15 +113,15 @@ def create_measurement_dict(all_models, kl_null_filename):
     return stats_dict
 
 
-def create_measurement_df(all_patients):
+def create_measurement_df(all_cancer_models):
     """
     Creates a DataFrame of measurements from a list of CancerModel objects.
     One row per experiment, one column per measurement.
     Wraps the response of create_measurement as a DataFrame
-    :param all_patients: The list of CancerModel objects
+    :param all_cancer_models: The list of CancerModel objects
     :return:  [DataFrame] The DataFrame of measurements
     """
-    stats_dict = create_measurement_dict(all_patients)
+    stats_dict = create_measurement_dict(all_cancer_models)
     return pd.DataFrame.from_dict(stats_dict).transpose()
 
 
@@ -285,7 +290,7 @@ def plot_gp(case, control, savename):
     :param savename: name under which the plot will be saved.
     """
     start, end = find_start_end(case, control)
-    plot_limits = [case.x[start][0], case.x[end - 1][0] + 1]
+    plot_limits = [case.level[start][0], case.level[end - 1][0] + 1]
     fig, ax = plt.subplots()
 
     plt.title("GP fits")
@@ -314,10 +319,10 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
         (mean will not be plotted), "both" (mean is overlayed) or "only" 
         (only mean is plotted)
     :param savename: The file name under which the figure will be saved.
-    :param normalised: If true, plots the normalised versions (case.y_norm). Otherwise case.y
+    :param normalised: If true, plots the normalised versions (case.response_norm). Otherwise case.y
     :return [Figure]: The figure showing the plot
     """
-    case_y = case.y_norm if normalised else case.y
+    case_y = case.response_norm if normalised else case.y
 
     if means not in [None, "only", "both"]:
         raise ValueError("means must be None, 'only', or 'both'")
@@ -328,7 +333,7 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
         #        end = case.measurement_end
         high = case_y[:, start:end].max()
     else:
-        control_y = control.y_norm if normalised else control.y
+        control_y = control.response_norm if normalised else control.y
         high = max(case_y[:, start:end].max(), control_y[:, start:end].max())
     low = min(case_y[:, start:end].min() * 10, 0)
     fig = plt.figure()
@@ -351,14 +356,14 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
                     s = "treatment"
                 else:
                     s = "_treatment"
-                plt.plot(case.x[start:end], y_slice[start:end], '.r-', label=s)
+                plt.plot(case.level[start:end], y_slice[start:end], '.r-', label=s)
         if control is not None:
             for j, y_slice in enumerate(control_y):
                 if j == 1:
                     s = "control"
                 else:
                     s = "_control"
-                plt.plot(control.x[start:end], y_slice[start:end], '.b-', label=s)
+                plt.plot(control.level[start:end], y_slice[start:end], '.b-', label=s)
     if means is not None:
         if means == "both":
             scase = ".k-"
@@ -366,20 +371,20 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
         else:
             scase = ".r-"
             scontrol = ".b-"
-        plt.plot(case.x[start:end], case_y.mean(axis=0)[start:end], scase, label="treatment")
-        plt.plot(control.x[start:end], control_y.mean(axis=0)[start:end], scontrol, label="control")
+        plt.plot(case.level[start:end], case_y.mean(axis=0)[start:end], scase, label="treatment")
+        plt.plot(control.level[start:end], control_y.mean(axis=0)[start:end], scontrol, label="control")
     fig.legend(loc='upper left', bbox_to_anchor=(0.125, .875))  # loc="upperleft"
     #    fig.legend(loc=(0,0),ncol=2)#"upper left")
     fig.savefig(savename)
     return fig
 
 
-def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05,
+def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05,
                     tgi_thresh=0.6):
     """
-    Plot a long PDF, one page per patient in all_patients
+    Plot a long PDF, one page per cancer_model in all_cancer_models
     :param outname: The name under which the PDF will be saved
-    :param all_patients: list of CancerModel objects to be plotted
+    :param all_cancer_models: list of CancerModel objects to be plotted
     :param stats_df: corresponding DataFrame of continuous statistics
     :param ag_df: corresponding DataFrame of binary classifiers
     :param kl_null_filename: Filename from which the KL null is read
@@ -390,50 +395,50 @@ def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fi
     """
     all_kl = calculate_null_kl(filename=kl_null_filename)
     with PdfPages(outname) as pdf:
-        for n, patient in enumerate(all_patients):
-            control = patient.categories["Control"]
-            for cat, cur_cat in patient.categories.items():
-                if cat != "Control":
+        for model_name, cancer_model in all_cancer_models:
+            control = cancer_model.treatment_conditions.get("Control")
+            for condition_name, treatment_cond in cancer_model:
+                if condition_name != "Control":
                     # TO ADD: SHOULD START ALSO CONTAIN control.measurement_start?!?
-                    start = max(cur_cat.find_start_date_index(), cur_cat.measurement_start)
-                    end = min(cur_cat.measurement_end, control.measurement_end)
-                    name = str(patient.name) + "*" + str(cat)
+                    start = max(treatment_cond.find_start_date_index(), treatment_cond.measurement_start)
+                    end = min(treatment_cond.measurement_end, control.measurement_end)
+                    name = str(cancer_model.name) + "*" + str(condition_name)
                     #                    plt.figure(figsize = (24,18))
 
                     fig, axes = plt.subplots(4, 2, figsize=(32, 18))
                     fig.suptitle(name, fontsize="x-large")
                     axes[0, 0].set_title("Replicates")
 
-                    print("Now plotting patient", name)
-                    for y_slice in cur_cat.y_norm:
-                        axes[0, 0].plot(cur_cat.x[start:end], y_slice[start:end], '.r-')
+                    print("Now plotting cancer_model", name)
+                    for y_slice in treatment_cond.response_norm:
+                        axes[0, 0].plot(treatment_cond.level[start:end], y_slice[start:end], '.r-')
 
                     if control.y_norm is None:
-                        print("No control for patient %d, category %s" % (n, str(cat)))
-                        print(patient)
+                        print("No control for cancer_model %d, category %s" % (n, str(condition_name)))
+                        print(cancer_model)
                         print('----')
                     else:
                         for y_slice in control.y_norm:
-                            axes[0, 0].plot(control.x[start:end], y_slice[start:end], '.b-')
+                            axes[0, 0].plot(control.level[start:end], y_slice[start:end], '.b-')
 
                     axes[1, 0].set_title("Means")
-                    axes[1, 0].plot(cur_cat.x[start:end], cur_cat.y_norm.mean(axis=0)[start:end], '.r-')
+                    axes[1, 0].plot(treatment_cond.level[start:end], treatment_cond.y_norm.mean(axis=0)[start:end], '.r-')
                     if control.y_norm is not None:
-                        axes[1, 0].plot(control.x[start:end], control.y_norm.mean(axis=0)[start:end], '.b-')
+                        axes[1, 0].plot(control.level[start:end], control.y_norm.mean(axis=0)[start:end], '.b-')
 
                     axes[1, 1].set_title("Pointwise KL divergence")
 
                     if fit_gp:
-                        axes[1, 1].plot(cur_cat.x[start:end + 1].ravel(),
-                                        [pointwise_kl(cur_cat, control, t).ravel()[0] for t in
-                                         cur_cat.x[start:end + 1].ravel()], 'ro')
+                        axes[1, 1].plot(treatment_cond.level[start:end + 1].ravel(),
+                                        [pointwise_kl(treatment_cond, control, t).ravel()[0] for t in
+                                         treatment_cond.level[start:end + 1].ravel()], 'ro')
                     else:
                         axes[1, 1].axis("off")
                         axes[1, 1].text(0.05, 0.3, "no GP fitting, hence no KL values")
                     axes[2, 0].set_title("GP plot: case")
                     axes[2, 1].set_title("GP plot: control")
                     if fit_gp:
-                        cur_cat.gp.plot(ax=axes[2, 0])
+                        treatment_cond.gp.plot(ax=axes[2, 0])
                         pl.show(block=True)
                         control.gp.plot(ax=axes[2, 1])
                         pl.show(block=True)
@@ -454,14 +459,14 @@ def plot_everything(outname, all_patients, stats_df, ag_df, kl_null_filename, fi
                     axes[3, 0].text(0.05, 0.3, '\n'.join(txt))
 
                     axes[0, 1].axis("off")
-                    rtl = ["KuLGaP: " + bts(cur_cat.kl_p_cvsc < p_val),
+                    rtl = ["KuLGaP: " + bts(treatment_cond.kl_p_cvsc < p_val),
                            "mRECIST (Novartis): " + tsmaller(stats_df.loc[name, "perc_mPD"], 0.5),
                            "mRECIST (ours): " + tsmaller(
                                plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5),
-                           "Angle: " + mw_letter(cur_cat.response_angle_rel, cur_cat.response_angle_rel_control,
+                           "Angle: " + mw_letter(treatment_cond.response_angle_rel, treatment_cond.response_angle_rel_control,
                                                  pval=p_val),
-                           "AUC: " + mw_letter(cur_cat.auc_norm, cur_cat.auc_control_norm, pval=p_val),
-                           "TGI: " + tsmaller(tgi_thresh, cur_cat.tgi)]
+                           "AUC: " + mw_letter(treatment_cond.auc_norm, treatment_cond.auc_control_norm, pval=p_val),
+                           "TGI: " + tsmaller(tgi_thresh, treatment_cond.tgi)]
 
                     #                    not yet implemented" )
                     # TO ADD: TGI
@@ -497,11 +502,11 @@ def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     return responses
 
 
-def get_classification_dict_with_patients(all_patients, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
+def get_classification_dict_with_patients(all_cancer_models, stats_df, p_val, all_kl, p_val_kl, tgi_thresh):
     """
     Return the responses (responder/non-responder calls) as a dictionary, using the list of patients
     rather than the DataFrame input
-    :param all_patients: list of CancerModel objects
+    :param all_cancer_models: list of CancerModel objects
     :param stats_df: corresponding DataFrame of continuous statistics
     :param p_val: the p-value
     :param all_kl: The list of KL null values
@@ -512,21 +517,21 @@ def get_classification_dict_with_patients(all_patients, stats_df, p_val, all_kl,
     """
     predict = {"kulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
                "TGI": []}
-    for n, patient in enumerate(all_patients):
-        for cat, cur_cat in patient.categories.items():
-            if cat != "Control":
-                name = str(patient.name) + "*" + str(cat)
-                predict["kulgap"].append(tsmaller(p_value(cur_cat.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0))
+    for model_name, cancer_model in all_cancer_models:
+        for condition_name, treatment_cond in cancer_model.treatment_conditions:
+            if condition_name != "Control":
+                name = str(cancer_model.name) + "*" + str(condition_name)
+                predict["kulgap"].append(tsmaller(p_value(treatment_cond.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0))
                 predict["mRECIST_Novartis"].append(tsmaller(stats_df.loc[name, "perc_mPD"], 0.5, y=1, n=-1, na=0))
                 predict["mRECIST_ours"].append(
                     tsmaller(plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5, y=1, n=-1,
                              na=0))
                 predict["Angle"].append(
-                    mw_letter(cur_cat.response_angle_rel, cur_cat.response_angle_rel_control, pval=p_val, y=1, n=-1,
+                    mw_letter(treatment_cond.response_angle_rel, treatment_cond.response_angle_rel_control, pval=p_val, y=1, n=-1,
                               na=0))
                 predict["AUC"].append(
-                    mw_letter(cur_cat.auc_norm, cur_cat.auc_control_norm, pval=p_val, y=1, n=-1, na=0))
-                predict["TGI"].append(tsmaller(tgi_thresh, cur_cat.tgi, y=1, n=0, na=2))
+                    mw_letter(treatment_cond.auc_norm, treatment_cond.auc_control_norm, pval=p_val, y=1, n=-1, na=0))
+                predict["TGI"].append(tsmaller(tgi_thresh, treatment_cond.tgi, y=1, n=0, na=2))
     return predict
 
 

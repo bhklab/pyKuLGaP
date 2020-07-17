@@ -600,7 +600,7 @@ class TreatmentCondition:
         # if y.ndim == 1:
         #     return np.log((y + 0.0001) / np.median(y[treatment_start]))
         # else:
-        # print(self.treament_start_date)
+        # print(self.treatment_start_date)
         # print(self.level)
         # print(y)
         #
@@ -712,12 +712,12 @@ class TreatmentCondition:
         max_x_index = min(self.measurement_end, control.measurement_end)
 
         if control.response.shape[1] > self.response.shape[1]:
-            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treament_start_date) *
-                                     quad(kl_integrand, self.treament_start_date, self.level[max_x_index], limit=100)[
+            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treatment_start_date) *
+                                     quad(kl_integrand, self.treatment_start_date, self.level[max_x_index], limit=100)[
                                          0])[0]
         else:
-            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treament_start_date) *
-                                     quad(kl_integrand, self.treament_start_date, control.level[max_x_index],
+            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treatment_start_date) *
+                                     quad(kl_integrand, self.treatment_start_date, control.level[max_x_index],
                                           limit=100)[0])[0]
 
         logger.info(self.kl_divergence)
@@ -894,7 +894,7 @@ class TreatmentCondition:
                 average_responses = []
 
                 for day, volume in zip(self.level.ravel(), self.response[i]):
-                    if (day - self.treament_start_date >= 3) and (day <= self.level[end]):
+                    if (day - self.treatment_start_date >= 3) and (day <= self.level[end]):
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -923,8 +923,8 @@ class TreatmentCondition:
                 day_diff = 0
 
                 for day, volume in days_volume:
-                    day_diff = day - self.treament_start_date
-                    if day >= self.treament_start_date and day_diff >= 3:
+                    day_diff = day - self.treatment_start_date
+                    if day >= self.treatment_start_date and day_diff >= 3:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -1104,7 +1104,7 @@ c       :param control: control TreatmentCondition object
             self.gp.plot_confidence(ax=ax, color='blue', plot_limits=[0, gp_x_limit])
 
             # Drug Start Line
-            plt.plot([self.treament_start_date, self.treament_start_date], [-10, 15], 'k-', lw=1)
+            plt.plot([self.treatment_start_date, self.treatment_start_date], [-10, 15], 'k-', lw=1)
 
             plt.levellabel('Day')
             plt.ylabel('Normalized log tumor size')
