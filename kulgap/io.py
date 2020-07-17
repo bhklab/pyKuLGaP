@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 
 from .classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition
 
@@ -41,14 +42,43 @@ def read_pdx_data(file_path):
             new_cond.x_cut = new_cond.response[new_cond.measurement_start:new_cond.measurement_end + 1]
             new_pdx_model.add_treatment_condition(new_cond)
             del new_cond
-        new_pdx_model.normalize_all_categories()
+        new_pdx_model.normalize_treatment_conditions()
         pdx_model_list.append(new_pdx_model)
         del new_pdx_model
     pdx_experiment = TreatmentResponseExperiment(pdx_model_list)
     return pdx_experiment
 
-# def read_webapp_form(JSON):
-#
+def read_cancer_model_from_csv_buffer(file_buffer):
+    df = pd.read_csv(file_buffer)
+
+    # -- build the TreatmentCondition objects from the df
+    control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
+    control = TreatmentCondition('Control', source_id='from_webapp',
+                                 level=df.Time.to_numpy(), response=control_response,
+                                 treatment_start_date=min(df.Time), is_control=True)
+
+    treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
+    treatment = TreatmentCondition('Control', source_id='from_webapp',
+                                   level=df.Time.to_numpy(), response=treatment_response,
+                                   treatment_start_date=min(df.Time), is_control=False)
+
+    # -- build the CancerModel object from the TreatmentConditions
+    treatment_condition_dict = {'Control': control, 'Treatment': treatment}
+    cancer_model = CancerModel(name="from_webapp",
+                               treatment_condition_dict=treatment_condition_dict,
+                               model_type="PDX",
+                               tumour_type="unknown",
+                               start_date=min(df.Time),
+                               treatment_start_date=min(df.Time),
+                               end_date=max(df.Time))
+
+    treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
+    patient_json = treatment_response_experiment.to_dict(recursive=True)
+    stats_json = treatment_response.
+
+
+
+
 
 
 ## TODO:: Build experiment object using pandas groupby statements

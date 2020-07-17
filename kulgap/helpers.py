@@ -103,18 +103,18 @@ def cv_smoothing(list_to_be_smoothed):
     return sm.nonparametric.KDEMultivariate(data=list_to_be_smoothed, var_type="c", bw="cv_ml")
 
 
-def calculate_null_kl(category_list=None, filename=None):
+def calculate_null_kl(treatment_condition_list=None, filename=None):
     """
     Calculates the smoothed null KL distribution. One of the two parameters must be non-null
-    :param category_list: [list] The list of categories from which the null kl is to be calculated.
+    :param treament_condition_list: [list] The list of treatment condition from which the null kl is to be calculated.
     :param filename: If None, calculate from category_list. Else read in from file_path
     :return: [list] the list of values and the smoothed object
     """
     if filename is None:
-        l = cross_kl_divergences(category_list)
+        null_kl_data = cross_kl_divergences(treament_condition_list)
     else:
-        l = list(pd.read_csv(filename, header=None)[0])
-    dens = cv_smoothing(l)
+        null_kl_data = list(pd.read_csv(filename, header=None)[0])
+    smoothed_null_kl = cv_smoothing(null_kl_data)
     return {"list": l, "smoothed": dens}
 
 

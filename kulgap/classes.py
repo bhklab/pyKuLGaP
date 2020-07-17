@@ -30,6 +30,7 @@ class TreatmentResponseExperiment:
     This class contains all CancerModel objects for a given treatment response experiment.
 
     """
+
     # -- Constructor
     def __init__(self, cancer_model_list):
         """
@@ -68,20 +69,23 @@ class TreatmentResponseExperiment:
 
     # -- Implementing built-in methods
     def __repr__(self):
-        return f'Cancer Models: {self.model_names}\nTreatment Categories: {self.all_treatment_categories()}\n'
+        return f'Cancer Models: {self.model_names}\nTreatment Conditions: {self.all_treatment_conditions()}\n'
 
     def __iter__(self):
         """Returns the iterator object when a `TreatmentResponseExperiment` is called for looping"""
         return TREIterator(TRE=self)
 
     # -- Class methods
-    def all_treatment_categories(self):
+    def all_treatment_conditions(self):
         treatment_conditions = [item for sublist in [model.treatment_conditions for model in self.cancer_models]
                                 for item in sublist]
         return np.unique(np.array(treatment_conditions))
 
-    def to_dict(self):
-        return dict(zip(self.model_names, self.cancer_models))
+    def to_dict(self, recursive=False):
+        if recursive:
+            return dict(zip(self.model_names, [model.to_dict(recursive=True) for model in self.cancer_models]))
+        else:
+            return dict(zip(self.model_names, self.cancer_models))
 
 
 # -- Helper classes for TreatmentResponseExperiment
@@ -236,7 +240,7 @@ class CancerModel:
         treatment_conds[treatment_condition.name] = treatment_condition
         self.treatment_conditions = treatment_conds
 
-    def normalize_all_categories(self):
+    def normalize_treatment_conditions(self):
         """
         Normalizes data for each TreatmentCondition in the CancerModel object and calculates the start and end
         parameters.
@@ -257,10 +261,10 @@ class CancerModel:
 
     def fit_all_gps(self):
         """
-        Fits GPs to all Categories in the CancerModel object
+        Fits GPs to all `TreatmentCondition`s in the `CancerModel` object
         :return: [None]
         """
-        control = self.categories.get("Control")
+        control = self.treatment_conditions.get("Control")
         if not isinstance(control, TreatmentCondition):
             raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
@@ -272,7 +276,9 @@ class CancerModel:
 
     def compute_other_measures(self, fit_gp, report_name=None):
         """
-        Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control Categories of the CancerModel
+        Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control `TreatmentConditions` of the
+        `CancerModel`.
+
         :fit_gp: whether a GP has been fit.
         :param report_name: Filename under which the error report will be saved
         :return: [None]
@@ -383,7 +389,7 @@ class CancerModel:
             print(failed_tgi, file=f)
             print("\n\n\n", file=f)
 
-    def to_dict(self):
+    def to_dict(self, recursive=False):
         return {
             'name': self.name,
             'source_id': self.source_id,
@@ -392,20 +398,27 @@ class CancerModel:
             'treatment_start_date': self.treatment_start_date,
             'end_date': self.end_date,
             'model_type': self.model_type,
-            'treatment_conditions': self.treatment_conditions
+            'treatment_conditions': dict([(name, condition.to_dict(json=True)) for name, condition in self]) if
+            recursive else self.treatment_conditions
         }
 
 
 # -- Helper classes for CancerModel
 
 class CancerModelIterator:
+    """
+    Iterator to allow looping over `CancerModel` objects. Returns a set tuples where the first item is the treatment
+    condition name and the second is the `TreatmentCondition` object.
+    """
+
     def __init__(self, cancer_model):
         self.model = cancer_model
         self.index = 0
 
     def __next__(self):
+        keys = list(self.model.treatment_conditions.keys())
         if self.index <= len(self.model.treatment_conditions) - 1:
-            results = self.model.treatment_conditions[self.index]
+            results = (keys[self.index], self.model.treatment_conditions.get(keys[self.index]))
         else:
             raise StopIteration
         self.index += 1
@@ -467,7 +480,7 @@ class TreatmentCondition:
         self.end = None
 
         self.source_id = source_id
-        self.replicates = replicates
+        self.replicates = replicates if isinstance(replicates, list) else list(replicates)
         self.is_control = is_control
         self.kl_p_cvsc = None
 
@@ -530,6 +543,22 @@ class TreatmentCondition:
         self.delta_log_likelihood_h0_h1 = None
 
         self.tgi = None
+
+    def to_dict(self, json=False):
+        # Helper to convert any NumPy types into base types
+        def _if_numpy_to_base(object):
+            if isinstance(object, np.ndarray):
+                return object.tolist()
+            elif isinstance(object, np.generic):
+                return object.item()
+            else:
+                return object
+
+        if json:
+            return dict(zip(list(self.__dict__.keys()),
+                            [_if_numpy_to_base(item) for item in self.__dict__.values()]))
+        else:
+            return self.__dict__
 
     def find_start_date_index(self):
         """
@@ -762,7 +791,7 @@ class TreatmentCondition:
         start = self.find_start_date_index()
         for i in range(len(self.replicates)):
 
-            if start == None:
+            if start is None:
                 raise
             else:
                 self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.level.ravel(),
@@ -935,7 +964,6 @@ class TreatmentCondition:
         """
         Credible interval function, for finding where the two GPs diverge.
 
-
         :param threshold [float] The level of confidence:
         :param t2 One time point:
         :param t1 The other time point:
@@ -1104,10 +1132,10 @@ c       :param control: control TreatmentCondition object
         :return [string] The representation:
         """
         return ('\n'.join([f"Name: {self.name}",
-                          f"Treatment Start Date: {self.treatment_start_date}",
-                          f"Source Id: {self.source_id}",
-                          f"K-L Divergence: {self.kl_divergence}",
-                          f"K-L P-Value: {self.kl_p_value}",
-                          f"mRecist: {self.mrecist}",
-                          f"Percent Credible Interval: {self.percent_credible_intervals}",
-                          f"Rates List: {self.rates_list}"]))
+                           f"Treatment Start Date: {self.treatment_start_date}",
+                           f"Source Id: {self.source_id}",
+                           f"K-L Divergence: {self.kl_divergence}",
+                           f"K-L P-Value: {self.kl_p_value}",
+                           f"mRecist: {self.mrecist}",
+                           f"Percent Credible Interval: {self.percent_credible_intervals}",
+                           f"Rates List: {self.rates_list}"]))

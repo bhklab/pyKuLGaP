@@ -14,3 +14,6 @@ results_path = os.path.join(os.getcwd(), "results")
 data_path = os.path.join(os.getcwd(), "data")
 
 file_path = os.path.join(data_path, 'alldata_new.csv')
+
+
+file_buffer = open(os.path.join(data_path, 'kulgap_webapp_data.csv'), 'r')
