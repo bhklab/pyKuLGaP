@@ -269,7 +269,7 @@ class CancerModel:
             raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
         control.fit_gaussian_processes()
-        for condition_name, treatment_cond in self.treatment_conditions.items():
+        for condition_name, treatment_cond in self:
             if condition_name != "Control":
                 treatment_cond.fit_gaussian_processes(control=control)
                 treatment_cond.calculate_kl_divergence(control)

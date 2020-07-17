@@ -80,7 +80,7 @@ def read_pdx_from_csv_buffer(file_buffer):
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
     patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
     stats_json = pd.DataFrame.from_dict(
-        create_measurement_dict(treatment_response_experiment.treatment_conditions)
+        create_measurement_dict(treatment_response_experiment.cancer_models)
     ).transpose().to_json()
 
 
