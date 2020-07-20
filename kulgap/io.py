@@ -22,8 +22,8 @@ def read_pdx_data(file_path):
         print(pname)
         df_pat = df[df.patient == pname]
         new_pdx_model = CancerModel(name=pname, tumour_type="no_tumour_type",
-                                    start_date=None, treatment_start_date=df_pat.drug_start_day.iloc[0],
-                                    end_date=None, treatment_condition_dict={})
+                                    level_start=None, treatment_start_date=df_pat.drug_start_day.iloc[0],
+                                    level_end=None, treatment_condition_dict={})
 
         for cname in df_pat.category.unique():
             new_cond = None
@@ -38,11 +38,10 @@ def read_pdx_data(file_path):
             new_cond = TreatmentCondition(cname, source_id=pname, level=level_array,
                                           response=response_array,
                                           replicates=range(response_array.shape[1]),
-                                          treatment_start_date=df_cat.drug_start_day.iloc[0],
+                                          treatment_level_start=df_cat.drug_start_day.iloc[0],
                                           is_control=df_cat.control.iloc[0] == 1)
-            new_cond.measurement_start = df_cat.measurement_start.iloc[0]
-            new_cond.measurement_end = df_cat.measurement_end.iloc[0]
-            new_cond.x_cut = new_cond.response[new_cond.measurement_start:new_cond.measurement_end + 1]
+            new_cond.level_start = df_cat.measurement_start.iloc[0]
+            new_cond.level_end = df_cat.measurement_end.iloc[0]
             new_pdx_model.add_treatment_condition(new_cond)
             del new_cond
         new_pdx_model.normalize_treatment_conditions()
@@ -59,13 +58,13 @@ def read_pdx_from_csv_buffer(file_buffer):
     control = TreatmentCondition('Control', source_id='from_webapp',
                                  level=df.Time.to_numpy(), response=control_response,
                                  replicates=list(range(control_response.shape[0])),
-                                 treatment_start_date=min(df.Time), is_control=True)
+                                 treatment_level_start=min(df.Time), is_control=True)
 
     treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     treatment = TreatmentCondition('Control', source_id='from_webapp',
                                    replicates=list(range(treatment_response.shape[0])),
                                    level=df.Time.to_numpy(), response=treatment_response,
-                                   treatment_start_date=min(df.Time), is_control=False)
+                                   treatment_level_start=min(df.Time), is_control=False)
 
     # -- build the CancerModel object from the TreatmentConditions
     treatment_condition_dict = {'Control': control, 'Treatment': treatment}
@@ -73,16 +72,27 @@ def read_pdx_from_csv_buffer(file_buffer):
                                treatment_condition_dict=treatment_condition_dict,
                                model_type="PDX",
                                tumour_type="unknown",
-                               start_date=min(df.Time),
+                               level_start=min(df.Time),
                                treatment_start_date=min(df.Time),
-                               end_date=max(df.Time))
+                               level_end=max(df.Time))
 
+    # -- build the TreatmentResponseExperiment object from the CancerModel
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
-    patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
+
+    # -- fit gaussian process models and calculate statistics
+    for model_name, cancer_model in treatment_response_experiment:
+        cancer_model.fit_all_gps()
+        cancer_model.compute_other_statistcs(fit_gps=True)
+
+    ## TODO:: Determine if I need to pass back the treatmetn_response_experiment or just the summary stats
+    #patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
+
+    # -- extract summary statistics and dump to json
     stats_json = pd.DataFrame.from_dict(
         create_measurement_dict(treatment_response_experiment.cancer_models)
     ).transpose().to_json()
 
+    return(stats_json)
 
 
 

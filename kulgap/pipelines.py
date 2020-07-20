@@ -193,11 +193,11 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                                 raise TypeError("The 'start' parameter is None")
                             else:
                                 cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                    control.x_cut.ravel(),
+                                    control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
                                     centre(control.y[i, control.measurement_start:control.measurement_end + 1], start),
                                     start)
                                 cur_case.response_angle_rel_control[control.replicates[i]] = compute_response_angle(
-                                    control.x_cut.ravel(),
+                                    control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
                                     relativize(control.y[i, control.measurement_start:control.measurement_end + 1],
                                                start), start)
 

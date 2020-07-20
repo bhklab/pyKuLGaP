@@ -121,24 +121,24 @@ class CancerModel:
     cellular viability measurements for cultures grown with a single cancer cell line.
     """
 
-    def __init__(self, name, source_id=None, tumour_type=None, start_date=None, treatment_start_date=None,
-                 end_date=None, treatment_condition_dict={}, model_type='PDX'):
+    def __init__(self, name, source_id=None, tumour_type=None, level_start=None, treatment_level_start=None,
+                 level_end=None, treatment_condition_dict={}, model_type='PDX'):
         """
         Initialize attributes.
 
         :param name: [string] Name of the patient or PHLC Donor ID
         :param source_id: [string] The source for this cancer model. (E.g., a patient id for PDX models, a specific
             cell line for CCL models.
-        :param start_date: [float] A numeric representation of the starting date of the experiment in days.
-        :param end_date: of monitoring
+        :param level_start: [float] A numeric representation of the starting date of the experiment in days.
+        :param level_end: of monitoring
         """
         # -- Defining internal data representation
         self.__name = name
         self.__source_id = source_id
         self.__tumour_type = tumour_type
-        self.__start_date = start_date
-        self.__treatment_start_date = treatment_start_date
-        self.__end_date = end_date
+        self.__start_date = level_start
+        self.__treatment_level_start = treatment_level_start
+        self.__level_end = level_end
         self.__model_type = model_type
         self.__treatment_conditions = treatment_condition_dict
 
@@ -168,20 +168,20 @@ class CancerModel:
         self.__start_date = new_start_date
 
     @property
-    def treatment_start_date(self):
-        return self.__treatment_start_date
+    def treatment_level_start(self):
+        return self.__treatment_level_start
 
-    @treatment_start_date.setter
-    def treatment_start_date(self, new_treatment_start_date):
-        self.__treatment_start_date = new_treatment_start_date
+    @treatment_level_start.setter
+    def treatment_level_start(self, new_treatment_level_start):
+        self.__treatment_level_start = new_treatment_level_start
 
     @property
-    def end_date(self):
-        return self.__end_date
+    def level_end(self):
+        return self.__level_end
 
-    @end_date.setter
-    def end_date(self, new_end_date):
-        self.__end_date = new_end_date
+    @level_end.setter
+    def level_end(self, new_level_end):
+        self.__level_end = new_level_end
 
     @property
     def tumour_type(self):
@@ -216,9 +216,9 @@ class CancerModel:
         return ('\n'.join([f"Cancer Model: {self.__name}",
                            f"Treatment Conditions: {list(self.__treatment_conditions.keys())}",
                            f"Source Id: {self.__source_id}",
-                           f"Start Date: {self.__start_date}",
-                           f"Treatment Start Date: {self.__treatment_start_date}",
-                           f"End Date: {self.__end_date}"]))
+                           f"Start Date: {self.__level_start}",
+                           f"Treatment Start Date: {self.__treatment_level_start}",
+                           f"End Date: {self.__level_end}"]))
 
     def __iter__(self):
         """Returns a dictionary object for iteration"""
@@ -254,8 +254,8 @@ class CancerModel:
         for treatment_condition_name, treatment_condition in self.__treatment_conditions.items():
             treatment_condition.normalize_data()
             if treatment_condition_name != "Control":
-                treatment_condition.start = max(treatment_condition.find_start_date_index(), control.measurement_start)
-                treatment_condition.end = min(control.measurement_end, treatment_condition.measurement_end)
+                treatment_condition.level_start = max(treatment_condition.find_level_start_index(), control.treatment_level_start)
+                treatment_condition.end = min(control.level_end, treatment_condition.level_end)
                 treatment_condition.create_full_data(control)
                 assert (treatment_condition.full_data != [])
 
@@ -293,7 +293,7 @@ class CancerModel:
         if not isinstance(control, TreatmentCondition):
             raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
-        for condition_name, treatment_condition in self.treatment_conditions.items():
+        for condition_name, treatment_condition in self:
             if condition_name != "Control":
                 # MRECIST
                 try:
@@ -311,19 +311,19 @@ class CancerModel:
                     treatment_condition.response_angle_control = {}
                     for i in range(len(control.replicates)):
 
-                        start = control.find_start_date_index() - control.measurement_start
+                        start = control.find_level_start_index() - control.treatment_level_start
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
                             treatment_condition.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.x_cut.ravel(),
-                                centre(control.response[i, control.measurement_start:control.measurement_end + 1],
+                                control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
+                                centre(control.response[i, control.treatment_level_start:control.level_end + 1],
                                        start),
                                 start)
                             treatment_condition.response_angle_rel_control[
                                 control.replicates[i]] = compute_response_angle(
-                                control.x_cut.ravel(),
-                                relativize(control.response[i, control.measurement_start:control.measurement_end + 1],
+                                control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
+                                relativize(control.response[i, control.treatment_level_start:control.level_end + 1],
                                            start), start)
 
                 except ValueError as e:
@@ -337,18 +337,20 @@ class CancerModel:
                     treatment_condition.calculate_auc_norm(control)
                     if fit_gp:
                         treatment_condition.calculate_gp_auc()
-                        treatment_condition.auc_gp_control = calculate_AUC(control.x_cut,
-                                                                           control.gp.predict(control.x_cut)[0])
+                        treatment_condition.auc_gp_control = \
+                            calculate_AUC(control.response[control.treatment_level_start:(control.level_end + 1)],
+                                          control.gp.predict(
+                                              control.response[control.treatment_level_start:(control.level_end + 1)]
+                                          )[0])
                     treatment_condition.auc_control = {}
-                    start = max(treatment_condition.find_start_date_index(), control.measurement_start)
-                    end = min(treatment_condition.measurement_end, control.measurement_end)
+                    start = max(treatment_condition.find_level_start_index(), control.treatment_level_start)
+                    end = min(treatment_condition.level_end, control.level_end)
                     for i in range(len(control.replicates)):
-                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.x[start:end],
-                                                                                               control.y[i, start:end])
+                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.level[start:end],
+                                                                                               control.response[i, start:end])
                         treatment_condition.auc_control_norm[control.replicates[i]] = calculate_AUC(
-                            control.x[start:end],
-                            control.response_norm[i,
-                            start:end])
+                            control.level[start:end],
+                            control.response_norm[i, start:end])
                 except ValueError as e:
                     failed_AUC.append((treatment_condition.source_id, e))
                     print(e)
@@ -371,32 +373,33 @@ class CancerModel:
                     # compute GP derivatives:
                     treatment_condition.compute_all_gp_derivatives(control)
 
-        with open(report_name, 'w') as f:
+        if report_name is not None:
+            with open(report_name, 'w') as f:
 
-            print("Errors calculating mRECIST:", file=f)
-            print(failed_mrecist, file=f)
-            print("\n\n\n", file=f)
+                print("Errors calculating mRECIST:", file=f)
+                print(failed_mrecist, file=f)
+                print("\n\n\n", file=f)
 
-            print("Errors calculating angles:", file=f)
-            print(failed_response_angle, file=f)
-            print("\n\n\n", file=f)
+                print("Errors calculating angles:", file=f)
+                print(failed_response_angle, file=f)
+                print("\n\n\n", file=f)
 
-            print("Errors calculating angles:", file=f)
-            print(failed_AUC, file=f)
-            print("\n\n\n", file=f)
+                print("Errors calculating angles:", file=f)
+                print(failed_AUC, file=f)
+                print("\n\n\n", file=f)
 
-            print("Errors calculating angles:", file=f)
-            print(failed_tgi, file=f)
-            print("\n\n\n", file=f)
+                print("Errors calculating angles:", file=f)
+                print(failed_tgi, file=f)
+                print("\n\n\n", file=f)
 
     def to_dict(self, recursive=False):
         return {
             'name': self.name,
             'source_id': self.source_id,
             'tumour_type': self.tumour_type,
-            'start_date': self.start_date,
-            'treatment_start_date': self.treatment_start_date,
-            'end_date': self.end_date,
+            'level_start': self.level_start,
+            'treatment_level_start': self.treatment_level_start,
+            'level_end': self.level_end,
             'model_type': self.model_type,
             'treatment_conditions': dict([(name, condition.to_dict(json=True)) for name, condition in self]) if
             recursive else self.treatment_conditions
@@ -449,7 +452,7 @@ class TreatmentCondition:
     It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, source_id=None, level=None, response=None, replicates=None, treatment_start_date=None,
+    def __init__(self, name, source_id=None, level=None, response=None, replicates=None, treatment_level_start=None,
                  is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
@@ -469,12 +472,14 @@ class TreatmentCondition:
         :return [None] Creates the TreatmentCondition object
         """
 
-        self.measurement_end = None
         self.name = name
-        self.level = np.asarray([[day] for day in level])
+        self.level = np.asarray([[lvl] for lvl in level])
         self.response = np.asarray(response.T).astype(float)
         self.response_norm = None
-        self.treatment_start_date = treatment_start_date
+        self.level_end = max(level).item()
+        self.level_start = min(level).item()
+        self.treatment_level_start = treatment_level_start if treatment_level_start is not None else self.level_start
+
 
         self.start = None
         self.end = None
@@ -483,6 +488,7 @@ class TreatmentCondition:
         self.replicates = replicates if isinstance(replicates, list) else list(replicates)
         self.is_control = is_control
         self.kl_p_cvsc = None
+
 
         # GPs
         self.gp = None
@@ -532,7 +538,7 @@ class TreatmentCondition:
         self.rates_list_control = []
 
         # Full Data is all of the data of the treatments and control
-        self.full_data = []
+        self.full_data = np.array([])
 
         # gp_h0 and gp_h1 depend on the full_data
         self.gp_h0 = None
@@ -560,7 +566,8 @@ class TreatmentCondition:
         else:
             return self.__dict__
 
-    def find_start_date_index(self):
+    ## TODO:: Can we implement this in the constructor?
+    def find_level_start_index(self):
         """
 
         Returns the index in the array of the location of the drug's
@@ -572,7 +579,7 @@ class TreatmentCondition:
         start_found = False
 
         for i in range(len(self.level.ravel())):
-            if self.level[i] - 1 <= self.treatment_start_date <= self.level[i] + 1 and start_found is False:
+            if self.level[i] - 1 <= self.treatment_level_start <= self.level[i] + 1 and start_found is False:
                 start = i
                 start_found = True
         return start
@@ -585,10 +592,10 @@ class TreatmentCondition:
         """
 
         logger.info("Normalizing data for " + self.name)
-        self.response_norm = self.__normalize_treatment_start_day_and_log_transform(self.response,
-                                                                                    self.find_start_date_index())
+        self.response_norm = self.__normalize_treatment_start_level_and_log_transform(self.response,
+                                                                                    self.treatment_level_start)
 
-    def __normalize_treatment_start_day_and_log_transform(self, y, treatment_start):
+    def __normalize_treatment_start_level_and_log_transform(self, y, treatment_start):
         """
         Normalize by dividing every y element-wise by the first day's median
         and then taking the log.
@@ -600,7 +607,7 @@ class TreatmentCondition:
         # if y.ndim == 1:
         #     return np.log((y + 0.0001) / np.median(y[treatment_start]))
         # else:
-        # print(self.treatment_start_date)
+        # print(self.treatment_level_start)
         # print(self.level)
         # print(y)
         #
@@ -617,12 +624,12 @@ class TreatmentCondition:
         # control
         for j, entry in enumerate(control.response_norm.T):
             for y in entry:
-                self.full_data.append([control.level[j][0], 0, y])
+                self.full_data = np.append(self.full_data.copy(), [control.level[j][0], 0, y], axis=0)
 
         # case
         for j, entry in enumerate(self.response_norm.T):
             for y in entry:
-                self.full_data.append([self.level[j][0], 1, y])
+                self.full_data = np.append(self.full_data.copy(), [self.level[j][0], 1, y], axis=0)
 
         self.full_data = np.asarray(self.full_data).astype(float)
 
@@ -637,8 +644,8 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[self.start:self.end + 1],
-                       control.response_norm.mean(axis=0)[self.start:self.end + 1], 0, self.end - self.start)
+        self.tgi = TGI(self.response_norm.mean(axis=0)[self.level_start:self.level_end + 1],
+                       control.response_norm.mean(axis=0)[self.level_start:self.level_end + 1], 0, self.level_end - self.level_start)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -656,7 +663,8 @@ class TreatmentCondition:
 
         # control for number of measurements per replicate if time not same length
         # self.response_norm.shape[0] is num replicates, [1] is num measurements
-        obs_per_replicate = self.response_norm.shape[1]
+        ## TODO:: Can we remove this line?
+        #obs_per_replicate = self.response_norm.shape[1]
         print("Now attempting to fit:")
         print("self.name:")
         print(self.name)
@@ -665,9 +673,10 @@ class TreatmentCondition:
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
-        y_norm_trunc = self.response_norm[:, self.measurement_start:self.measurement_end]
-        x = np.tile(self.level[self.measurement_start:self.measurement_end], (len(self.replicates), 1))
-        y = np.resize(y_norm_trunc, (y_norm_trunc.shape[0] * y_norm_trunc.shape[1], 1))
+        y = self.response_norm[:, self.treatment_level_start:self.level_end]
+        x = np.tile(self.level[self.treatment_level_start:self.level_end], (len(self.replicates), 1))
+        x = np.resize(x, y.shape)
+        ## FIXME:: Does the GPR model keep the sample size or do we need to record it here?
         self.gp = GPRegression(x, y, self.gp_kernel)
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
@@ -709,15 +718,15 @@ class TreatmentCondition:
             return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
                     (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-        max_x_index = min(self.measurement_end, control.measurement_end)
+        max_x_index = min(self.level_end, control.level_start)
 
         if control.response.shape[1] > self.response.shape[1]:
-            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treatment_start_date) *
-                                     quad(kl_integrand, self.treatment_start_date, self.level[max_x_index], limit=100)[
+            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treatment_level_start) *
+                                     quad(kl_integrand, self.treatment_level_start, self.level[max_x_index], limit=100)[
                                          0])[0]
         else:
-            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treatment_start_date) *
-                                     quad(kl_integrand, self.treatment_start_date, control.level[max_x_index],
+            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treatment_level_start) *
+                                     quad(kl_integrand, self.treatment_level_start, control.level[max_x_index],
                                           limit=100)[0])[0]
 
         logger.info(self.kl_divergence)
@@ -788,7 +797,7 @@ class TreatmentCondition:
         :param control [TreatmentCondition] the corresponding control object
         :return [None] writes to the angle parameters 
         """
-        start = self.find_start_date_index()
+        start = self.treatment_level_start
         for i in range(len(self.replicates)):
 
             if start is None:
@@ -850,8 +859,8 @@ class TreatmentCondition:
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_start_date_index(), control.measurement_start)
-        end = min(self.measurement_end, control.measurement_end)
+        start = max(self.find_level_start_index(), control.treatment_level_start)
+        end = min(self.level_end, control.level_end)
         for i in range(len(self.replicates)):
             self.auc[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end],
                                                                 self.response[i, start:end])
@@ -862,8 +871,8 @@ class TreatmentCondition:
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_start_date_index(), control.measurement_start)
-        end = min(self.measurement_end, control.measurement_end)
+        start = max(self.find_level_start_index(), control.treatment_level_start)
+        end = min(self.level_end, control.level_end)
         for i in range(len(self.replicates)):
             self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end],
                                                                      self.response_norm[i, start:end])
@@ -879,9 +888,9 @@ class TreatmentCondition:
 
         :return [None]
         """
-        start = self.find_start_date_index()
-        end = self.measurement_end
-        for i in range(len(self.replicates)):
+        start = self.find_level_start_index()
+        end = len(self.level) - 1
+        for i in range(len(self.replicates) - 1):
             # days_volume = zip(self.level.ravel(), self.response[i])
 
             if start is None:
@@ -894,7 +903,7 @@ class TreatmentCondition:
                 average_responses = []
 
                 for day, volume in zip(self.level.ravel(), self.response[i]):
-                    if (day - self.treatment_start_date >= 3) and (day <= self.level[end]):
+                    if (day - self.treatment_level_start >= 3) and (day <= self.level[end]):
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -909,7 +918,7 @@ class TreatmentCondition:
 
         for i in range(len(self.replicates)):
             days_volume = zip(self.level.ravel(), self.response[i])
-            start = self.find_start_date_index()
+            start = self.find_level_start_index()
 
             if start is None:
                 raise
@@ -923,8 +932,8 @@ class TreatmentCondition:
                 day_diff = 0
 
                 for day, volume in days_volume:
-                    day_diff = day - self.treatment_start_date
-                    if day >= self.treatment_start_date and day_diff >= 3:
+                    day_diff = day - self.treatment_level_start
+                    if day >= self.treatment_level_start and day_diff >= 3:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -1104,7 +1113,7 @@ c       :param control: control TreatmentCondition object
             self.gp.plot_confidence(ax=ax, color='blue', plot_limits=[0, gp_x_limit])
 
             # Drug Start Line
-            plt.plot([self.treatment_start_date, self.treatment_start_date], [-10, 15], 'k-', lw=1)
+            plt.plot([self.treatment_level_start, self.treatment_level_start], [-10, 15], 'k-', lw=1)
 
             plt.levellabel('Day')
             plt.ylabel('Normalized log tumor size')
@@ -1132,7 +1141,7 @@ c       :param control: control TreatmentCondition object
         :return [string] The representation:
         """
         return ('\n'.join([f"Name: {self.name}",
-                           f"Treatment Start Date: {self.treatment_start_date}",
+                           f"Treatment Start Date: {self.treatment_level_start}",
                            f"Source Id: {self.source_id}",
                            f"K-L Divergence: {self.kl_divergence}",
                            f"K-L P-Value: {self.kl_p_value}",
