@@ -121,24 +121,24 @@ class CancerModel:
     cellular viability measurements for cultures grown with a single cancer cell line.
     """
 
-    def __init__(self, name, source_id=None, tumour_type=None, level_start=None, treatment_level_start=None,
-                 level_end=None, treatment_condition_dict={}, model_type='PDX'):
+    def __init__(self, name, source_id=None, tumour_type=None, variable_start=None, variable_treatment_start=None,
+                 variable_end=None, treatment_condition_dict={}, model_type='PDX'):
         """
         Initialize attributes.
 
         :param name: [string] Name of the patient or PHLC Donor ID
         :param source_id: [string] The source for this cancer model. (E.g., a patient id for PDX models, a specific
             cell line for CCL models.
-        :param level_start: [float] A numeric representation of the starting date of the experiment in days.
-        :param level_end: of monitoring
+        :param variable_start: [float] A numeric representation of the starting date of the experiment in days.
+        :param variable_end: of monitoring
         """
         # -- Defining internal data representation
         self.__name = name
         self.__source_id = source_id
         self.__tumour_type = tumour_type
-        self.__start_date = level_start
-        self.__treatment_level_start = treatment_level_start
-        self.__level_end = level_end
+        self.__variable_start = variable_start
+        self.__variable_ned = variable_end
+        self.__variable_treatment_start = variable_treatment_start
         self.__model_type = model_type
         self.__treatment_conditions = treatment_condition_dict
 
@@ -160,28 +160,28 @@ class CancerModel:
         self.__source_id = new_source_id
 
     @property
-    def start_date(self):
-        return self.__start_date
+    def variable_start(self):
+        return self.__variable_start
 
-    @start_date.setter
-    def start_date(self, new_start_date):
-        self.__start_date = new_start_date
-
-    @property
-    def treatment_level_start(self):
-        return self.__treatment_level_start
-
-    @treatment_level_start.setter
-    def treatment_level_start(self, new_treatment_level_start):
-        self.__treatment_level_start = new_treatment_level_start
+    @variable_start.setter
+    def variable_start(self, new_variable_start):
+        self.__variable_start = new_variable_start
 
     @property
-    def level_end(self):
-        return self.__level_end
+    def variable_treatment_start(self):
+        return self.__variable_treatment_start
 
-    @level_end.setter
-    def level_end(self, new_level_end):
-        self.__level_end = new_level_end
+    @variable_treatment_start.setter
+    def variable_treatment_start(self, new_variable_treatment_start):
+        self.__variable_treatment_start = new_variable_treatment_start
+
+    @property
+    def variable_end(self):
+        return self.__variable_end
+
+    @variable_end.setter
+    def variable_end(self, new_variable_end):
+        self.__variable_end = new_variable_end
 
     @property
     def tumour_type(self):
@@ -216,9 +216,9 @@ class CancerModel:
         return ('\n'.join([f"Cancer Model: {self.__name}",
                            f"Treatment Conditions: {list(self.__treatment_conditions.keys())}",
                            f"Source Id: {self.__source_id}",
-                           f"Start Date: {self.__level_start}",
-                           f"Treatment Start Date: {self.__treatment_level_start}",
-                           f"End Date: {self.__level_end}"]))
+                           f"Start Date: {self.__variable_start}",
+                           f"Treatment Start Date: {self.__variable_treatment_start}",
+                           f"End Date: {self.__variable_end}"]))
 
     def __iter__(self):
         """Returns a dictionary object for iteration"""
@@ -254,8 +254,8 @@ class CancerModel:
         for treatment_condition_name, treatment_condition in self.__treatment_conditions.items():
             treatment_condition.normalize_data()
             if treatment_condition_name != "Control":
-                treatment_condition.level_start = max(treatment_condition.find_level_start_index(), control.treatment_level_start)
-                treatment_condition.end = min(control.level_end, treatment_condition.level_end)
+                treatment_condition.variable_start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start)
+                treatment_condition.end = min(control.variable_end, treatment_condition.variable_end)
                 treatment_condition.create_full_data(control)
                 assert (treatment_condition.full_data != [])
 
@@ -311,19 +311,19 @@ class CancerModel:
                     treatment_condition.response_angle_control = {}
                     for i in range(len(control.replicates)):
 
-                        start = control.find_level_start_index() - control.treatment_level_start
+                        start = control.find_variable_start_index() - control.variable_treatment_start
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
                             treatment_condition.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
-                                centre(control.response[i, control.treatment_level_start:control.level_end + 1],
+                                control.response[control.variable_treatment_start:(control.variable_end + 1)].ravel(),
+                                centre(control.response[i, start:control.variable_end_index + 1],
                                        start),
                                 start)
                             treatment_condition.response_angle_rel_control[
                                 control.replicates[i]] = compute_response_angle(
-                                control.response[control.treatment_level_start:(control.level_end + 1)].ravel(),
-                                relativize(control.response[i, control.treatment_level_start:control.level_end + 1],
+                                control.response[control.variable_treatment_start:(control.variable_end + 1)].ravel(),
+                                relativize(control.response[i, control.variable_treatment_start:control.variable_end + 1],
                                            start), start)
 
                 except ValueError as e:
@@ -338,18 +338,18 @@ class CancerModel:
                     if fit_gp:
                         treatment_condition.calculate_gp_auc()
                         treatment_condition.auc_gp_control = \
-                            calculate_AUC(control.response[control.treatment_level_start:(control.level_end + 1)],
+                            calculate_AUC(control.response[control.variable_treatment_start:(control.variable_end + 1)],
                                           control.gp.predict(
-                                              control.response[control.treatment_level_start:(control.level_end + 1)]
+                                              control.response[control.variable_treatment_start:(control.variable_end + 1)]
                                           )[0])
                     treatment_condition.auc_control = {}
-                    start = max(treatment_condition.find_level_start_index(), control.treatment_level_start)
-                    end = min(treatment_condition.level_end, control.level_end)
+                    start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start)
+                    end = min(treatment_condition.variable_end, control.variable_end)
                     for i in range(len(control.replicates)):
-                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.level[start:end],
+                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.variable[start:end],
                                                                                                control.response[i, start:end])
                         treatment_condition.auc_control_norm[control.replicates[i]] = calculate_AUC(
-                            control.level[start:end],
+                            control.variable[start:end],
                             control.response_norm[i, start:end])
                 except ValueError as e:
                     failed_AUC.append((treatment_condition.source_id, e))
@@ -397,9 +397,9 @@ class CancerModel:
             'name': self.name,
             'source_id': self.source_id,
             'tumour_type': self.tumour_type,
-            'level_start': self.level_start,
-            'treatment_level_start': self.treatment_level_start,
-            'level_end': self.level_end,
+            'variable_start': self.variable_start,
+            'variable_treatment_start': self.variable_treatment_start,
+            'variable_end': self.variable_end,
             'model_type': self.model_type,
             'treatment_conditions': dict([(name, condition.to_dict(json=True)) for name, condition in self]) if
             recursive else self.treatment_conditions
@@ -433,7 +433,7 @@ class CancerModelIterator:
 class TreatmentCondition:
     """
     The `TreatmentCondition` class stores treatment response data for an experimental condition within a `CancerModel`.
-    It stores all replicates for all levels of the experimental condition for a given cancer model system.
+    It stores all replicates for all variables of the experimental condition for a given cancer model system.
 
     For example, in CancerModel Derived Xenograph (PDX) experiments it would store the tumour size measurements at each
     exposure time for all mouse models derived from a single patient.
@@ -452,7 +452,7 @@ class TreatmentCondition:
     It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, source_id=None, level=None, response=None, replicates=None, treatment_level_start=None,
+    def __init__(self, name, source_id=None, variable=None, response=None, replicates=None, variable_treatment_start=None,
                  is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
@@ -462,8 +462,8 @@ class TreatmentCondition:
         :param source_id: [string] A unique identifier for the cancer model source. For PDX models this would be the
             name of id of the patient from which the models were derived. For CCLs this would be the strain from which
             all cell cultures were derived.
-        :param level: [ndarray] The level of the experimental condition. For example, the treatment exposure time
-            for each tumour size measurement or the dose level for each cell viability measurement.
+        :param variable: [ndarray] The variable of the experimental condition. For example, the treatment exposure time
+            for each tumour size measurement or the dose variable for each cell viability measurement.
         :param response: [ndarray] The response metric for the experimental condition. E.g., the tumour size in a PDX
             model after x days of treatment exposure or the cell viability measurements in a CCL at a specific compound
             dose.
@@ -473,16 +473,18 @@ class TreatmentCondition:
         """
 
         self.name = name
-        self.level = np.asarray([[lvl] for lvl in level])
+        self.variable = np.asarray([[lvl] for lvl in variable])
         self.response = np.asarray(response.T).astype(float)
         self.response_norm = None
-        self.level_end = max(level).item()
-        self.level_start = min(level).item()
-        self.treatment_level_start = treatment_level_start if treatment_level_start is not None else self.level_start
-
+        self.variable_end = max(variable).item()
+        self.variable_start = min(variable).item()
+        self.variable_treatment_start = variable_treatment_start if variable_treatment_start is not None else self.variable_start
 
         self.start = None
         self.end = None
+
+        self.variable_start_index = self.find_variable_start_index()
+        self.variable_end_index = len(self.response) - 1
 
         self.source_id = source_id
         self.replicates = replicates if isinstance(replicates, list) else list(replicates)
@@ -550,6 +552,7 @@ class TreatmentCondition:
 
         self.tgi = None
 
+
     def to_dict(self, json=False):
         # Helper to convert any NumPy types into base types
         def _if_numpy_to_base(object):
@@ -567,7 +570,7 @@ class TreatmentCondition:
             return self.__dict__
 
     ## TODO:: Can we implement this in the constructor?
-    def find_level_start_index(self):
+    def find_variable_start_index(self):
         """
 
         Returns the index in the array of the location of the drug's
@@ -578,8 +581,8 @@ class TreatmentCondition:
         start = None
         start_found = False
 
-        for i in range(len(self.level.ravel())):
-            if self.level[i] - 1 <= self.treatment_level_start <= self.level[i] + 1 and start_found is False:
+        for i in range(len(self.variable.ravel())):
+            if self.variable[i] - 1 <= self.variable_treatment_start <= self.variable[i] + 1 and start_found is False:
                 start = i
                 start_found = True
         return start
@@ -592,10 +595,10 @@ class TreatmentCondition:
         """
 
         logger.info("Normalizing data for " + self.name)
-        self.response_norm = self.__normalize_treatment_start_level_and_log_transform(self.response,
-                                                                                    self.treatment_level_start)
+        self.response_norm = self.__normalize_treatment_start_variable_and_log_transform(self.response,
+                                                                                         self.find_variable_start_index())
 
-    def __normalize_treatment_start_level_and_log_transform(self, y, treatment_start):
+    def __normalize_treatment_start_variable_and_log_transform(self, y, treatment_start_index):
         """
         Normalize by dividing every y element-wise by the first day's median
         and then taking the log.
@@ -605,14 +608,14 @@ class TreatmentCondition:
         """
 
         # if y.ndim == 1:
-        #     return np.log((y + 0.0001) / np.median(y[treatment_start]))
+        #     return np.log((y + 0.0001) / np.median(y[treatment_start_index]))
         # else:
-        # print(self.treatment_level_start)
-        # print(self.level)
+        # print(self.variable_treatment_start)
+        # print(self.variable)
         # print(y)
         #
-        # print(np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start)], dtype=float).T) + 1)
-        return np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start)], dtype=float).T) + 1
+        # print(np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start_index)], dtype=float).T) + 1)
+        return np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start_index)], dtype=float).T) + 1
 
     def create_full_data(self, control):
         """
@@ -624,14 +627,16 @@ class TreatmentCondition:
         # control
         for j, entry in enumerate(control.response_norm.T):
             for y in entry:
-                self.full_data = np.append(self.full_data.copy(), [control.level[j][0], 0, y], axis=0)
+                if self.full_data.size is 0:
+                    self.full_data = np.array([control.variable[j][0], 0, y])
+                else:
+                    self.full_data = np.vstack((self.full_data, [control.variable[j][0], 0, y]))
 
         # case
         for j, entry in enumerate(self.response_norm.T):
             for y in entry:
-                self.full_data = np.append(self.full_data.copy(), [self.level[j][0], 1, y], axis=0)
+                self.full_data = np.vstack((self.full_data, [self.variable[j][0], 1, y]))
 
-        self.full_data = np.asarray(self.full_data).astype(float)
 
     def calculate_tgi(self, control):
         """
@@ -644,8 +649,9 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[self.level_start:self.level_end + 1],
-                       control.response_norm.mean(axis=0)[self.level_start:self.level_end + 1], 0, self.level_end - self.level_start)
+        self.tgi = TGI(self.response_norm.mean(axis=0)[self.variable_start_index:self.variable_end_index + 1],
+                       control.response_norm.mean(axis=0)[self.variable_start_index:self.variable_end_index + 1], 0,
+                       self.variable_end_index - self.variable_start_index)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -673,11 +679,12 @@ class TreatmentCondition:
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
-        y = self.response_norm[:, self.treatment_level_start:self.level_end]
-        x = np.tile(self.level[self.treatment_level_start:self.level_end], (len(self.replicates), 1))
-        x = np.resize(x, y.shape)
+
+        response_norm_trunc = self.response_norm[:, self.variable_start_index:self.variable_end_index]
+        variable = np.tile(self.variable[self.variable_start_index:self.variable_end_index], (len(self.replicates), 1))
+        response = np.resize(response_norm_trunc, (response_norm_trunc.shape[0] * response_norm_trunc.shape[1], 1))
         ## FIXME:: Does the GPR model keep the sample size or do we need to record it here?
-        self.gp = GPRegression(x, y, self.gp_kernel)
+        self.gp = GPRegression(variable, response, self.gp_kernel)
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
         if control is not None:
@@ -718,15 +725,15 @@ class TreatmentCondition:
             return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
                     (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-        max_x_index = min(self.level_end, control.level_start)
+        max_x_index = min(self.variable_end_index, control.variable_start_index)
 
         if control.response.shape[1] > self.response.shape[1]:
-            self.kl_divergence = abs(1 / (self.level[max_x_index] - self.treatment_level_start) *
-                                     quad(kl_integrand, self.treatment_level_start, self.level[max_x_index], limit=100)[
+            self.kl_divergence = abs(1 / (self.variable[max_x_index] - self.variable_treatment_start) *
+                                     quad(kl_integrand, self.variable_treatment_start, self.variable[max_x_index], limit=100)[
                                          0])[0]
         else:
-            self.kl_divergence = abs(1 / (control.level[max_x_index] - self.treatment_level_start) *
-                                     quad(kl_integrand, self.treatment_level_start, control.level[max_x_index],
+            self.kl_divergence = abs(1 / (control.variable[max_x_index] - self.variable_treatment_start) *
+                                     quad(kl_integrand, self.variable_treatment_start, control.variable[max_x_index],
                                           limit=100)[0])[0]
 
         logger.info(self.kl_divergence)
@@ -797,34 +804,34 @@ class TreatmentCondition:
         :param control [TreatmentCondition] the corresponding control object
         :return [None] writes to the angle parameters 
         """
-        start = self.treatment_level_start
+        start = self.variable_start_index
         for i in range(len(self.replicates)):
 
             if start is None:
-                raise
+                raise ValueError("The `self.variable_start_index` parameter is missing, please initialize this value.")
             else:
-                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.level.ravel(),
+                self.response_angle[self.replicates[i]] = self.__compute_response_angle(self.variable.ravel(),
                                                                                         self.__centre(self.response[i],
                                                                                                       start),
                                                                                         start)
-                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.level.ravel(),
+                self.response_angle_rel[self.replicates[i]] = self.__compute_response_angle(self.variable.ravel(),
                                                                                             self.__relativize(
                                                                                                 self.response[i],
                                                                                                 start),
                                                                                             start)
 
-        self.average_angle = self.__compute_response_angle(self.level.ravel(),
+        self.average_angle = self.__compute_response_angle(self.variable.ravel(),
                                                            self.__centre(np.nanmean(self.response, axis=0), start),
                                                            start)
-        self.average_angle_rel = self.__compute_response_angle(self.level.ravel(),
+        self.average_angle_rel = self.__compute_response_angle(self.variable.ravel(),
                                                                self.__relativize(np.nanmean(self.response, axis=0),
                                                                                  start),
                                                                start)
-        self.average_angle_control = self.__compute_response_angle(control.level.ravel(),
+        self.average_angle_control = self.__compute_response_angle(control.variable.ravel(),
                                                                    self.__centre(np.nanmean(control.response, axis=0),
                                                                                  start),
                                                                    start)
-        self.average_angle_rel_control = self.__compute_response_angle(control.level.ravel(),
+        self.average_angle_rel_control = self.__compute_response_angle(control.variable.ravel(),
                                                                        self.__relativize(
                                                                            np.nanmean(control.response, axis=0),
                                                                            start), start)
@@ -851,7 +858,7 @@ class TreatmentCondition:
         :return
         """
         #
-        self.auc_gp = self.__calculate_AUC(self.level, self.gp.predict(self.level)[0])
+        self.auc_gp = self.__calculate_AUC(self.variable, self.gp.predict(self.variable)[0])
 
     def calculate_auc(self, control):
         """
@@ -859,10 +866,10 @@ class TreatmentCondition:
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_level_start_index(), control.treatment_level_start)
-        end = min(self.level_end, control.level_end)
+        start = max(self.find_variable_start_index(), control.variable_treatment_start)
+        end = min(self.variable_end, control.variable_end)
         for i in range(len(self.replicates)):
-            self.auc[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end],
+            self.auc[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                 self.response[i, start:end])
 
     def calculate_auc_norm(self, control):
@@ -871,10 +878,10 @@ class TreatmentCondition:
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_level_start_index(), control.treatment_level_start)
-        end = min(self.level_end, control.level_end)
+        start = max(self.find_variable_start_index(), control.variable_treatment_start)
+        end = min(self.variable_end, control.variable_end)
         for i in range(len(self.replicates)):
-            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.level.ravel()[start:end],
+            self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                      self.response_norm[i, start:end])
 
     def calculate_mrecist(self):
@@ -888,10 +895,10 @@ class TreatmentCondition:
 
         :return [None]
         """
-        start = self.find_level_start_index()
-        end = len(self.level) - 1
+        start = self.find_variable_start_index()
+        end = len(self.variable) - 1
         for i in range(len(self.replicates) - 1):
-            # days_volume = zip(self.level.ravel(), self.response[i])
+            # days_volume = zip(self.variable.ravel(), self.response[i])
 
             if start is None:
                 raise
@@ -902,8 +909,8 @@ class TreatmentCondition:
                 responses = []
                 average_responses = []
 
-                for day, volume in zip(self.level.ravel(), self.response[i]):
-                    if (day - self.treatment_level_start >= 3) and (day <= self.level[end]):
+                for day, volume in zip(self.variable.ravel(), self.response[i]):
+                    if (day - self.variable_treatment_start >= 3) and (day <= self.variable[end]):
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -917,8 +924,8 @@ class TreatmentCondition:
                     self.mrecist[self.replicates[i]] = 'mPD'
 
         for i in range(len(self.replicates)):
-            days_volume = zip(self.level.ravel(), self.response[i])
-            start = self.find_level_start_index()
+            days_volume = zip(self.variable.ravel(), self.response[i])
+            start = self.find_variable_start_index()
 
             if start is None:
                 raise
@@ -932,8 +939,8 @@ class TreatmentCondition:
                 day_diff = 0
 
                 for day, volume in days_volume:
-                    day_diff = day - self.treatment_level_start
-                    if day >= self.treatment_level_start and day_diff >= 3:
+                    day_diff = day - self.variable_treatment_start
+                    if day >= self.variable_treatment_start and day_diff >= 3:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
@@ -973,7 +980,7 @@ class TreatmentCondition:
         """
         Credible interval function, for finding where the two GPs diverge.
 
-        :param threshold [float] The level of confidence:
+        :param threshold [float] The variable of confidence:
         :param t2 One time point:
         :param t1 The other time point:
         :param control: the corresponding control object:
@@ -1012,13 +1019,13 @@ c       :param control: control TreatmentCondition object
         logger.info("Calculating credible intervals for: " + self.name)
 
         if control is not None:
-            largest_x_index = max(len(control.level), len(self.level))
+            largest_x_index = max(len(control.variable), len(self.variable))
 
-            if len(control.level) > len(self.level):
-                for i in self.level[1:]:
+            if len(control.variable) > len(self.variable):
+                for i in self.variable[1:]:
                     self.credible_intervals.append((self.__credible_interval(0.95, i[0], control=control)[0], i[0]))
             else:
-                for i in control.level[1:]:
+                for i in control.variable[1:]:
                     self.credible_intervals.append((self.__credible_interval(0.95, i[0], control=control)[0], i[0]))
         else:
             logger.error("The function `calculate_credible_intervals` requires control.")
@@ -1066,9 +1073,9 @@ c       :param control: control TreatmentCondition object
         """
 
         logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
-        for x in self.level:
+        for x in self.variable:
             self.rates_list.append(self.__gp_derivative(x, self.gp)[0])
-        for x in control.level:
+        for x in control.variable:
             self.rates_list_control.append(self.__gp_derivative(x, control.gp)[0])
         self.rates_list = np.ravel(self.rates_list)
         self.rates_list_control = np.ravel(self.rates_list_control)
@@ -1100,7 +1107,7 @@ c       :param control: control TreatmentCondition object
                 "Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
 
             # set xlim
-            gp_x_limit = max(self.level) + 5
+            gp_x_limit = max(self.variable) + 5
 
             # Control
             control.gp.plot_data(ax=ax, color='red')
@@ -1113,14 +1120,14 @@ c       :param control: control TreatmentCondition object
             self.gp.plot_confidence(ax=ax, color='blue', plot_limits=[0, gp_x_limit])
 
             # Drug Start Line
-            plt.plot([self.treatment_level_start, self.treatment_level_start], [-10, 15], 'k-', lw=1)
+            plt.plot([self.variable_treatment_start, self.variable_treatment_start], [-10, 15], 'k-', lw=1)
 
-            plt.levellabel('Day')
+            plt.xlabel('Day')
             plt.ylabel('Normalized log tumor size')
             plt.ylim(-10, 15)
 
             # Always select the longest date + 5
-            plt.levellim(0, max(self.level) + 5)
+            plt.xlim(0, max(self.variable) + 5)
 
             if show_kl_divergence:
                 plt.text(2, -8, 'KL Divergence: ' + str(self.kl_divergence))
@@ -1141,7 +1148,7 @@ c       :param control: control TreatmentCondition object
         :return [string] The representation:
         """
         return ('\n'.join([f"Name: {self.name}",
-                           f"Treatment Start Date: {self.treatment_level_start}",
+                           f"Treatment Start Date: {self.variable_treatment_start}",
                            f"Source Id: {self.source_id}",
                            f"K-L Divergence: {self.kl_divergence}",
                            f"K-L P-Value: {self.kl_p_value}",

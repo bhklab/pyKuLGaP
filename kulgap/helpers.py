@@ -197,6 +197,6 @@ def compute_response_angle(x, y, start):
     :return [float] the angle:
     """
     l = min(len(x), len(y))
-    model = sm.OLS(y[start:l], x[start:l])
+    model = sm.OLS(y[start:l], x[start:l], missing='drop')
     results = model.fit()
     return np.arctan(results.params[0])
