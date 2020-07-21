@@ -17,7 +17,8 @@ def read_pdx_data(file_path):
     """
     pdx_model_list = []
     df = pd.read_csv(file_path, index_col=0)
-    for pname in df.patient.unique()[1:5]:
+    # FIXME:: Remove this subset in the final release!
+    for pname in df.patient.unique()[0:5]:
         new_pdx_model = None
         print(pname)
         df_pat = df[df.patient == pname]
@@ -50,7 +51,7 @@ def read_pdx_data(file_path):
     pdx_experiment = TreatmentResponseExperiment(pdx_model_list)
     return pdx_experiment
 
-def read_pdx_from_csv_buffer(file_buffer):
+def read_pdx_from_byte_stream(file_buffer):
     df = pd.read_csv(file_buffer)
 
     # -- build the TreatmentCondition objects from the df

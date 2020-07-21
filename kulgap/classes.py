@@ -251,13 +251,14 @@ class CancerModel:
         if not isinstance(control, TreatmentCondition):
             raise TypeError("The `control` variable is not a `TreatmentConditon`, please ensure a treatment condition"
                             "named 'Control' exists in this object before trying to normalize.")
-        for treatment_condition_name, treatment_condition in self.__treatment_conditions.items():
+        for treatment_condition_name, treatment_condition in self:
             treatment_condition.normalize_data()
             if treatment_condition_name != "Control":
-                treatment_condition.variable_start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start)
+                treatment_condition.variable_start = max(treatment_condition.find_variable_start_index(),
+                                                         control.variable_start)
                 treatment_condition.end = min(control.variable_end, treatment_condition.variable_end)
                 treatment_condition.create_full_data(control)
-                assert (treatment_condition.full_data != [])
+                assert treatment_condition.full_data.size != 0
 
     def fit_all_gps(self):
         """
@@ -350,8 +351,9 @@ class CancerModel:
                     start = max(treatment_condition.find_variable_start_index(), control.variable_start_index)
                     end = min(treatment_condition.variable_end, control.variable_end)
                     for i in range(len(control.replicates)):
-                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.variable[start:end],
-                                                                                               control.response[i, start:end])
+                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(
+                            control.variable[start:end],
+                            control.response[i, start:end])
                         treatment_condition.auc_control_norm[control.replicates[i]] = calculate_AUC(
                             control.variable[start:end],
                             control.response_norm[i, start:end])
@@ -379,7 +381,6 @@ class CancerModel:
 
         if report_name is not None:
             with open(report_name, 'w') as f:
-
                 print("Errors calculating mRECIST:", file=f)
                 print(failed_mrecist, file=f)
                 print("\n\n\n", file=f)
@@ -456,7 +457,8 @@ class TreatmentCondition:
     It can have multiple replicates (ie. data for multiple growth curves)
     """
 
-    def __init__(self, name, source_id=None, variable=None, response=None, replicates=None, variable_treatment_start=None,
+    def __init__(self, name, source_id=None, variable=None, response=None, replicates=None,
+                 variable_treatment_start=None,
                  is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
@@ -480,21 +482,21 @@ class TreatmentCondition:
         self.variable = np.asarray([[var] for var in variable])
         self.response = np.asarray(response.T).astype(float)
         self.response_norm = None
-        self.variable_end = max(variable).item()
-        self.variable_start = min(variable).item()
+        self.variable_end = self.variable[-1]
+        # TODO:: Is there any situation where np.array indexing doesn't start at 0?
+        self.variable_start = self.variable[0]
         self.variable_treatment_start = variable_treatment_start if variable_treatment_start is not None else self.variable_start
 
         self.start = None
         self.end = None
 
-        self.variable_start_index = self.find_variable_start_index()
-        self.variable_end_index = len(self.variable) - 1
+        self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
+        self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
 
         self.source_id = source_id
         self.replicates = replicates if isinstance(replicates, list) else list(replicates)
         self.is_control = is_control
         self.kl_p_cvsc = None
-
 
         # GPs
         self.gp = None
@@ -555,7 +557,6 @@ class TreatmentCondition:
         self.delta_log_likelihood_h0_h1 = None
 
         self.tgi = None
-
 
     def to_dict(self, json=False):
         # Helper to convert any NumPy types into base types
@@ -641,7 +642,6 @@ class TreatmentCondition:
             for y in entry:
                 self.full_data = np.vstack((self.full_data, [self.variable[j][0], 1, y]))
 
-
     def calculate_tgi(self, control):
         """
         Calculates the Tumour Growth Index of a TreatmentCondition object
@@ -683,7 +683,6 @@ class TreatmentCondition:
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
-
         response_norm_trunc = self.response_norm[:, self.variable_start_index:self.variable_end_index]
         variable = np.tile(self.variable[self.variable_start_index:self.variable_end_index], (len(self.replicates), 1))
         response = np.resize(response_norm_trunc, (response_norm_trunc.shape[0] * response_norm_trunc.shape[1], 1))
@@ -701,8 +700,8 @@ class TreatmentCondition:
             self.gp_h1 = GPRegression(self.full_data[:, 0:2], self.full_data[:, 2:3], self.gp_h1_kernel)
 
             # optimize GPs
-            self.gp_h0.optimize_restarts(num_restarts=num_restarts, messages=False)
-            self.gp_h1.optimize_restarts(num_restarts=num_restarts, messages=False)
+            self.gp_h0.optimize_restarts(num_restarts=num_restarts, messages=False, robust=True)  # silent exceptions
+            self.gp_h1.optimize_restarts(num_restarts=num_restarts, messages=False, robust=True)
 
             self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
 
@@ -1070,7 +1069,9 @@ class TreatmentCondition:
 
         mu, ignore = gp.predictive_gradients(variable)
         ignore, cov = gp.predict(variable, full_cov=True)
-        mult = [[((1. / gp.kern.lengthscale) * (1 - (1. / gp.kern.lengthscale) * (y - z) ** 2))[0] for y in variable]
+        # FIXME:: How did this not divide by zero previously?
+        mult = [[((1. / gp.kern.lengthscale) *
+                  (1 - (1. / gp.kern.lengthscale) * (y - z) ** 2))[0] for y in variable if y != z]
                 for z in variable]
         return mu, mult * cov
 

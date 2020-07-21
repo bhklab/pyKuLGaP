@@ -20,7 +20,6 @@ from kulgap.plotting import plot_everything, create_and_plot_agreements, get_cla
 
 from kulgap.io import read_pdx_data
 
-
 results_folder = "results"
 data_folder = "data/"
 
@@ -124,7 +123,13 @@ for model_name, CancerModel in all_patients:
 
 full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,kl_null_filename)).transpose()
 
+old_stats_df = pd.read_csv('../old_stats_df.csv')
+old_stats_df = old_stats_df[full_stats_df.columns]
 
+old_stats_df.iloc[1, :]
+full_stats_df.iloc[1, :]
+
+old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]
 
 #TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
 classifiers_df = get_classification_df(full_stats_df)

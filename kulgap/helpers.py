@@ -45,6 +45,7 @@ def calculate_AUC(variable, response):
     """
     AUC = 0
     min_length = min(len(variable), len(response))
+    variable = variable.ravel()
     for j in range(min_length - 1):
         AUC += (response[j + 1] - response[j]) / (variable[j + 1] - variable[j])
     return AUC
@@ -175,7 +176,7 @@ def relativize(y, start):
     :param start [int] the start index:
     :return [ndarray] the modified array:
     """
-    return y / y[start] - 1
+    return (y / y[start]) - 1
 
 
 def centre(y, start):
