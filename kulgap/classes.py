@@ -137,7 +137,7 @@ class CancerModel:
         self.__source_id = source_id
         self.__tumour_type = tumour_type
         self.__variable_start = variable_start
-        self.__variable_ned = variable_end
+        self.__variable_end = variable_end
         self.__variable_treatment_start = variable_treatment_start
         self.__model_type = model_type
         self.__treatment_conditions = treatment_condition_dict
@@ -311,20 +311,21 @@ class CancerModel:
                     treatment_condition.response_angle_control = {}
                     for i in range(len(control.replicates)):
 
-                        start = control.find_variable_start_index() - control.variable_treatment_start
+                        start = control.find_variable_start_index()
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
                             treatment_condition.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.response[control.variable_treatment_start:(control.variable_end + 1)].ravel(),
-                                centre(control.response[i, start:control.variable_end_index + 1],
-                                       start),
+                                control.response[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
+                                centre(control.response[i, start:control.variable_end_index],
+                                       0),
                                 start)
                             treatment_condition.response_angle_rel_control[
                                 control.replicates[i]] = compute_response_angle(
-                                control.response[control.variable_treatment_start:(control.variable_end + 1)].ravel(),
-                                relativize(control.response[i, control.variable_treatment_start:control.variable_end + 1],
-                                           start), start)
+                                control.response[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
+                                relativize(control.response[i, control.variable_start_index:(
+                                        control.variable_end_index + 1)], 0),
+                                0)
 
                 except ValueError as e:
                     failed_response_angle.append((treatment_condition.source_id, e))
@@ -338,12 +339,12 @@ class CancerModel:
                     if fit_gp:
                         treatment_condition.calculate_gp_auc()
                         treatment_condition.auc_gp_control = \
-                            calculate_AUC(control.response[control.variable_treatment_start:(control.variable_end + 1)],
+                            calculate_AUC(control.response[control.variable_start_index:(control.variable_end + 1)],
                                           control.gp.predict(
-                                              control.response[control.variable_treatment_start:(control.variable_end + 1)]
+                                              control.response[control.variable_start_index:(control.variable_end + 1)]
                                           )[0])
                     treatment_condition.auc_control = {}
-                    start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start)
+                    start = max(treatment_condition.find_variable_start_index(), control.variable_start_index)
                     end = min(treatment_condition.variable_end, control.variable_end)
                     for i in range(len(control.replicates)):
                         treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(control.variable[start:end],
@@ -442,7 +443,7 @@ class TreatmentCondition:
     from a single cancer cell line and treated with a specific compound.
 
     Thus the `TreatmentCondition` class can be though of a storing data response data for a cancer model in two
-    dimensions: replicates (e.g., a specific mouse or culture) x condition levels (e.g., a specific time or dose).
+    dimensions: replicates (e.g., a specific mouse or culture) variable condition levels (e.g., a specific time or dose).
 
     Common experimental conditions:
         * Control, i.e. no treatment
@@ -465,7 +466,7 @@ class TreatmentCondition:
         :param variable: [ndarray] The variable of the experimental condition. For example, the treatment exposure time
             for each tumour size measurement or the dose variable for each cell viability measurement.
         :param response: [ndarray] The response metric for the experimental condition. E.g., the tumour size in a PDX
-            model after x days of treatment exposure or the cell viability measurements in a CCL at a specific compound
+            model after variable days of treatment exposure or the cell viability measurements in a CCL at a specific compound
             dose.
         :param replicates: [ndarray] The
         :param is_control: [bool] Whether or not the treatment condition is a control.
@@ -473,7 +474,7 @@ class TreatmentCondition:
         """
 
         self.name = name
-        self.variable = np.asarray([[lvl] for lvl in variable])
+        self.variable = np.asarray([[var] for var in variable])
         self.response = np.asarray(response.T).astype(float)
         self.response_norm = None
         self.variable_end = max(variable).item()
@@ -484,7 +485,7 @@ class TreatmentCondition:
         self.end = None
 
         self.variable_start_index = self.find_variable_start_index()
-        self.variable_end_index = len(self.response) - 1
+        self.variable_end_index = len(self.variable) - 1
 
         self.source_id = source_id
         self.replicates = replicates if isinstance(replicates, list) else list(replicates)
@@ -600,21 +601,21 @@ class TreatmentCondition:
 
     def __normalize_treatment_start_variable_and_log_transform(self, y, treatment_start_index):
         """
-        Normalize by dividing every y element-wise by the first day's median
+        Normalize by dividing every response element-wise by the first day's median
         and then taking the log.
 
-        :param y [array] the array of values to be normalised:
+        :param response [array] the array of values to be normalised:
         :return [array] the normalised array:
         """
 
-        # if y.ndim == 1:
-        #     return np.log((y + 0.0001) / np.median(y[treatment_start_index]))
+        # if response.ndim == 1:
+        #     return np.log((response + 0.0001) / np.median(response[treatment_start_index]))
         # else:
         # print(self.variable_treatment_start)
         # print(self.variable)
-        # print(y)
+        # print(response)
         #
-        # print(np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start_index)], dtype=float).T) + 1)
+        # print(np.log(np.asarray((response.T + 0.01) / response.T[int(treatment_start_index)], dtype=float).T) + 1)
         return np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start_index)], dtype=float).T) + 1
 
     def create_full_data(self, control):
@@ -627,7 +628,7 @@ class TreatmentCondition:
         # control
         for j, entry in enumerate(control.response_norm.T):
             for y in entry:
-                if self.full_data.size is 0:
+                if self.full_data.size == 0:
                     self.full_data = np.array([control.variable[j][0], 0, y])
                 else:
                     self.full_data = np.vstack((self.full_data, [control.variable[j][0], 0, y]))
@@ -670,7 +671,7 @@ class TreatmentCondition:
         # control for number of measurements per replicate if time not same length
         # self.response_norm.shape[0] is num replicates, [1] is num measurements
         ## TODO:: Can we remove this line?
-        #obs_per_replicate = self.response_norm.shape[1]
+        obs_per_replicate = self.response_norm.shape[1]
         print("Now attempting to fit:")
         print("self.name:")
         print(self.name)
@@ -713,24 +714,24 @@ class TreatmentCondition:
 
         logger.info("Calculating the KL Divergence for " + self.name)
 
-        def kl_integrand(t):
+        def kl_integrand(variable):
             """
             Calculates the KL integrand
-            :param t [the time index]:
-            :return [float] the integrand:
+            :param variable [int?] The independent variable for the Gaussian Process Model (either time or dose).
+            :return [float] The integrand
             """
-            mean_control, var_control = control.gp.predict(np.asarray([[t]]))
-            mean_case, var_case = self.gp.predict(np.asarray([[t]]))
+            mean_control, var_control = control.gp.predict(np.asarray([[variable]]))
+            mean_case, var_case = self.gp.predict(np.asarray([[variable]]))
 
             return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
                     (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-        max_x_index = min(self.variable_end_index, control.variable_start_index)
+        max_x_index = min(self.variable_end_index, control.variable_end_index)
 
         if control.response.shape[1] > self.response.shape[1]:
             self.kl_divergence = abs(1 / (self.variable[max_x_index] - self.variable_treatment_start) *
-                                     quad(kl_integrand, self.variable_treatment_start, self.variable[max_x_index], limit=100)[
-                                         0])[0]
+                                     quad(kl_integrand, self.variable_treatment_start, self.variable[max_x_index],
+                                          limit=100)[0])[0]
         else:
             self.kl_divergence = abs(1 / (control.variable[max_x_index] - self.variable_treatment_start) *
                                      quad(kl_integrand, self.variable_treatment_start, control.variable[max_x_index],
@@ -739,25 +740,25 @@ class TreatmentCondition:
         logger.info(self.kl_divergence)
 
     @staticmethod
-    def __fit_single_gaussian_process(x, y_norm, num_restarts=7):
+    def __fit_single_gaussian_process(variable, response_norm, num_restarts=7):
         """
         GP fitting.
 
         Returns the GP and kernel.
 
-        :param x: time
-        :param y_norm: log-normalized target
+        :param variable: time
+        :param response_norm: log-normalized target
         :return [tuple] a tuple:
             - the gp object
             - the kernel
         """
 
-        obs_per_replicate = y_norm.shape[1]
+        obs_per_replicate = response_norm.shape[1]
 
         kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
-        x = np.tile(x, (y_norm.shape[0], 1))
-        y = np.resize(y_norm, (y_norm.shape[0] * y_norm.shape[1], 1))
-        gp = GPRegression(x, y, kernel)
+        variable = np.tile(variable, (response_norm.shape[0], 1))
+        response = np.resize(response_norm, (response_norm.shape[0] * response_norm.shape[1], 1))
+        gp = GPRegression(variable, response, kernel)
         gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
         return gp, kernel
@@ -766,7 +767,7 @@ class TreatmentCondition:
     def __relativize(y, start):
         """
         Normalises a numpy array to the start day
-        :param y [ndarray] the array to be normalised:
+        :param response [ndarray] the array to be normalised:
         :param start [int] the start day:
         :return [ndarray] the normalised array:
         """
@@ -776,23 +777,23 @@ class TreatmentCondition:
     def __centre(y, start):
         """
         Centres a numpy array to the start day
-        :param y [ndarray] the array to be normalised:
+        :param response [ndarray] the array to be normalised:
         :param start [int] the start day:
         :return [ndarray] the normalised array:
         """
         return y - y[start]
 
     @staticmethod
-    def __compute_response_angle(x, y, start):
+    def __compute_response_angle(variable, response, start):
         """
-        Calculates the response angle for observations y, given time points x and start point start
-        :param x [ndarray] the time points: 
-        :param y [ndarray] the observations:
-        :param start [umpy array] the start point for the angle computation:
+        Calculates the response angle for observations response, given time points variable and start point start
+        :param variable [ndarray] the time points
+        :param response [ndarray] the observations
+        :param start [numpy array] the start point for the angle computation
         :return [float] the angle:
         """
-        l = min(len(x), len(y))
-        model = sm.OLS(y[start:l], x[start:l])
+        min_length = min(len(variable), len(response))
+        model = sm.OLS(response[start:min_length], variable[start:min_length], missing='drop')  # Drop NaNs
         results = model.fit()
         return np.arctan(results.params[0])
 
@@ -804,7 +805,7 @@ class TreatmentCondition:
         :param control [TreatmentCondition] the corresponding control object
         :return [None] writes to the angle parameters 
         """
-        start = self.variable_start_index
+        start = self.find_variable_start_index()
         for i in range(len(self.replicates)):
 
             if start is None:
@@ -837,18 +838,18 @@ class TreatmentCondition:
                                                                            start), start)
 
     @staticmethod
-    def __calculate_AUC(x, y):
+    def __calculate_AUC(variable, response):
         """
         Calculates the area under the curve of a set of observations 
 
-        :param x [ndarray] the time points:
-        :param y [ndarray] the observations:
-        :return [float] The area under the curve:
+        :param variable [ndarray] the time points
+        :param response [ndarray] the observations
+        :return [float] The area under the curve
         """
         AUC = 0
-        l = min(len(x), len(y))
-        for j in range(l - 1):
-            AUC += (y[j + 1] - y[j]) / (x[j + 1] - x[j])
+        min_length = min(len(variable), len(response))
+        for j in range(min_length - 1):
+            AUC += (response[j + 1] - response[j]) / (variable[j + 1] - variable[j])
         return AUC
 
     def calculate_gp_auc(self):
@@ -862,24 +863,24 @@ class TreatmentCondition:
 
     def calculate_auc(self, control):
         """
-        Builds the AUC (Area under the curve) dict for y.
+        Builds the AUC (Area under the curve) dict for response.
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_variable_start_index(), control.variable_treatment_start)
-        end = min(self.variable_end, control.variable_end)
+        start = max(self.find_variable_start_index(), control.find_variable_start_index())
+        end = min(self.variable_end_index, control.variable_end_index)
         for i in range(len(self.replicates)):
             self.auc[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                 self.response[i, start:end])
 
     def calculate_auc_norm(self, control):
         """
-        Builds the AUC (Area under the curve) dict. for y_norm
+        Builds the AUC (Area under the curve) dict. for response_norm
         :param control: the corresponding control object:
         :return [None]:
         """
-        start = max(self.find_variable_start_index(), control.variable_treatment_start)
-        end = min(self.variable_end, control.variable_end)
+        start = max(self.find_variable_start_index(), control.find_variable_start_index())
+        end = min(self.variable_end_index, control.variable_end_index)
         for i in range(len(self.replicates)):
             self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                      self.response_norm[i, start:end])
@@ -896,12 +897,13 @@ class TreatmentCondition:
         :return [None]
         """
         start = self.find_variable_start_index()
-        end = len(self.variable) - 1
+        end = self.variable_end_index
         for i in range(len(self.replicates) - 1):
             # days_volume = zip(self.variable.ravel(), self.response[i])
 
             if start is None:
-                raise
+                raise ValueError("The `start` attribute for this `TreatmentCondition` object is set to None, "
+                                 "please reset.")
             else:
                 initial_volume = self.response[i][start]
 
@@ -928,7 +930,8 @@ class TreatmentCondition:
             start = self.find_variable_start_index()
 
             if start is None:
-                raise
+                raise ValueError("The `start` attribute for this `TreatmentCondition` object is set to None, "
+                                 "please reset.")
             else:
                 initial_volume = self.response[i][start]
 
@@ -960,9 +963,9 @@ class TreatmentCondition:
         :return:
         """
 
+        # TODO:: Instead of error, we could just call method to calculate mrecist, then give the user a warning?
         if self.mrecist is None:
-            print("TreatmentCondition object does not have a mRECIST attribute.")
-            raise
+            raise ValueError("`TreatmentCondition` object mrecist attribute is none, please calculate mrecist first!")
 
         self.mrecist_counts = Counter(mCR=0, mPR=0, mSD=0, mPD=0)
         for replicate in self.replicates:
@@ -976,13 +979,14 @@ class TreatmentCondition:
             elif mrecist == 'mPD':
                 self.mrecist_counts['mPD'] += 1
 
-    def __credible_interval(self, threshold, t2, t1=0, control=None):
+    def __credible_interval(self, threshold, variable_2, variable_1=0, control=None):
         """
         Credible interval function, for finding where the two GPs diverge.
 
-        :param threshold [float] The variable of confidence:
-        :param t2 One time point:
-        :param t1 The other time point:
+        ## FIXME:: Is variable float or int?
+        :param threshold [float] The variable of confidence
+        :param variable_2 [int] The value of variable at the end of the range (i.e, time 2 or dose 2)
+        :param variable_1 [int] The value of variable at the start of the range (i.e., time 1 or dose 1)
         :param control: the corresponding control object:
         :return:
         """
@@ -991,16 +995,16 @@ class TreatmentCondition:
             sigma = 1
 
             a = np.array([1, -1, -1, 1])
-            means = np.array([self.gp.predict(np.asarray([[t2]])),
-                              self.gp.predict(np.asarray([[t1]])),
-                              control.gp.predict(np.asarray([[t2]])),
-                              control.gp.predict(np.asarray([[t1]]))])[:, 0, 0]
+            means = np.array([self.gp.predict(np.asarray([[variable_2]])),
+                              self.gp.predict(np.asarray([[variable_1]])),
+                              control.gp.predict(np.asarray([[variable_2]])),
+                              control.gp.predict(np.asarray([[variable_1]]))])[:, 0, 0]
 
-            controlp = [control.gp.predict(np.asarray([[t1]])), control.gp.predict(np.asarray([[t2]]))]
+            controlp = [control.gp.predict(np.asarray([[variable_1]])), control.gp.predict(np.asarray([[variable_2]]))]
             variances = np.zeros((4, 4))
 
-            variances[0:2, 0:2] = self.gp.predict(np.asarray([[t1], [t2]]), full_cov=True)[1]
-            variances[2:4, 2:4] = control.gp.predict(np.asarray([[t1], [t2]]), full_cov=True)[1]
+            variances[0:2, 0:2] = self.gp.predict(np.asarray([[variable_1], [variable_2]]), full_cov=True)[1]
+            variances[2:4, 2:4] = control.gp.predict(np.asarray([[variable_1], [variable_2]]), full_cov=True)[1]
 
             mu = np.dot(a, means)
             sigma = np.dot(np.dot(a, variances), a.T)
@@ -1012,7 +1016,7 @@ class TreatmentCondition:
 
     def calculate_credible_intervals(self, control):
         """
-c       :param control: control TreatmentCondition object
+        :param control: control TreatmentCondition object
         :return:
         """
 
@@ -1022,7 +1026,7 @@ c       :param control: control TreatmentCondition object
             largest_x_index = max(len(control.variable), len(self.variable))
 
             if len(control.variable) > len(self.variable):
-                for i in self.variable[1:]:
+                for i in self.variable[1:]:  # Why starting at second value?
                     self.credible_intervals.append((self.__credible_interval(0.95, i[0], control=control)[0], i[0]))
             else:
                 for i in control.variable[1:]:
@@ -1032,7 +1036,8 @@ c       :param control: control TreatmentCondition object
 
     def calculate_credible_intervals_percentage(self):
         """
-        :return [float] The credible intervals:
+        :return [float] The credible intervals; also has the side effect of setting the percent_credible_intervals
+            attribute on the object.
         """
         logger.info("Calculating percentage of credible intervals.")
 
@@ -1044,39 +1049,39 @@ c       :param control: control TreatmentCondition object
         self.percent_credible_intervals = (num_true / len(self.credible_intervals)) * 100
         return self.percent_credible_intervals
 
-    def __gp_derivative(self, x, gp):
+    def __gp_derivative(self, variable, gp):
         """
         Computes the derivative of the Gaussian Process gp
         (with respect to its 'time' variable) and
         returns the values of the derivative at time
-        points x to deal with some weird stuff about
-        :param x [float] The time point:
-        :param gp [GP] The GP to be differentiated:
+        points variable to deal with some weird stuff about
+        :param variable [float] The independent variable, either time for PDX models or dose for CCL models
+        :param gp [GP] The GaussianProcess to be differentiated
         :return [tuple] A tuple:
             - The mean
             - The covariance
         """
 
-        if x.ndim == 1:
-            x = x[:, np.newaxis]
+        if variable.ndim == 1:
+            variable = variable[:, np.newaxis]
 
-        mu, ignore = gp.predictive_gradients(x)
-        ignore, cov = gp.predict(x, full_cov=True)
-        mult = [[((1. / gp.kern.lengthscale) * (1 - (1. / gp.kern.lengthscale) * (y - z) ** 2))[0] for y in x] for z in
-                x]
+        mu, ignore = gp.predictive_gradients(variable)
+        ignore, cov = gp.predict(variable, full_cov=True)
+        mult = [[((1. / gp.kern.lengthscale) * (1 - (1. / gp.kern.lengthscale) * (y - z) ** 2))[0] for y in variable]
+                for z in variable]
         return mu, mult * cov
 
     def compute_all_gp_derivatives(self, control):
         """
-        :param control: the corresponding control object:
-        :return:
+        :param control [TreatmentCondition] The control `TreatmentCondition` for the current `CancerModel`
+        :return: [None] Sets the `rates_list` attribute
         """
 
         logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
-        for x in self.variable:
-            self.rates_list.append(self.__gp_derivative(x, self.gp)[0])
-        for x in control.variable:
-            self.rates_list_control.append(self.__gp_derivative(x, control.gp)[0])
+        for var in self.variable:
+            self.rates_list.append(self.__gp_derivative(var, self.gp)[0])
+        for var in control.variable:
+            self.rates_list_control.append(self.__gp_derivative(var, control.gp)[0])
         self.rates_list = np.ravel(self.rates_list)
         self.rates_list_control = np.ravel(self.rates_list_control)
         logger.info("Done calcluating GP derivatives for: " + self.name + ' and control')
@@ -1096,7 +1101,6 @@ c       :param control: control TreatmentCondition object
         :param output_pdf: an output_pdf object
         :return:
         """
-
         if control is None:
             logger.error("You need to plot with a control.")
         else:
@@ -1104,7 +1108,7 @@ c       :param control: control TreatmentCondition object
 
             fig, ax = plt.subplots()
             plt.title(
-                "Case (Blue) and Control (Red) Comparison of \n" + str(self.source_id) + " with " + str(self.name))
+                f"Case (Blue) and Control (Red) Comparison of \n {str(self.source_id)} with {str(self.name)}")
 
             # set xlim
             gp_x_limit = max(self.variable) + 5

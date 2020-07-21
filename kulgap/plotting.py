@@ -166,7 +166,7 @@ def bts(boolean, y="Y", n="N"):
 
 def tsmaller(v1, v2, y="Y", n="N", na="N/a"):
     """
-    Compares v1 with v2. Returns the value of y if v1 is smaller than v2 and the value of n
+    Compares v1 with v2. Returns the value of response if v1 is smaller than v2 and the value of n
     otherwise. Returns na if either of v1 or v2 is None
     :param v1: the first value of the comparison
     :param v2: the first value of the comparison 
@@ -209,7 +209,8 @@ def mw_letter_from_strings(s1, s2, pval=0.05, y="Y", n="N", na=None):
     :param n: Returned if the test is not significant
     :param na: Returned if the test fails
     """
-    if ("nan" == str(s1)) or ("nan" == str(s2)):
+    ## TODO:: Determine why there are empty strings being returned in ...angle_rel_control
+    if ("nan" == str(s1)) or ("nan" == str(s2)) or not s1 or not s2: # Add conditions to deal with empty strings
         if na is None:
             return "no value"
         return na
@@ -244,7 +245,7 @@ def pointwise_kl(case, control, t):
 
 def p_value(y, l2):
     """
-    returns p-value for each y based on l2
+    returns p-value for each response based on l2
     :param y: The value for which the p-value is to be computed
     :param l2: The list of values on which the p-value calculation is based
     :return: The calculated p-value
@@ -273,7 +274,7 @@ def find_start_end(case, control):
 
 def logna(x):
     """
-    Calcluate the log of x except return 0 if x is None
+    Calcluate the log of variable except return 0 if variable is None
     :param x: the input value
     :return: the log or 0.
     """
@@ -290,7 +291,7 @@ def plot_gp(case, control, savename):
     :param savename: name under which the plot will be saved.
     """
     start, end = find_start_end(case, control)
-    plot_limits = [case.level[start][0], case.level[end - 1][0] + 1]
+    plot_limits = [case.variable[start][0], case.variable[end - 1][0] + 1]
     fig, ax = plt.subplots()
 
     plt.title("GP fits")
@@ -319,7 +320,7 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
         (mean will not be plotted), "both" (mean is overlayed) or "only" 
         (only mean is plotted)
     :param savename: The file name under which the figure will be saved.
-    :param normalised: If true, plots the normalised versions (case.response_norm). Otherwise case.y
+    :param normalised: If true, plots the normalised versions (case.response_norm). Otherwise case.response
     :return [Figure]: The figure showing the plot
     """
     case_y = case.response_norm if normalised else case.y
@@ -356,14 +357,14 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
                     s = "treatment"
                 else:
                     s = "_treatment"
-                plt.plot(case.level[start:end], y_slice[start:end], '.r-', label=s)
+                plt.plot(case.variable[start:end], y_slice[start:end], '.r-', label=s)
         if control is not None:
             for j, y_slice in enumerate(control_y):
                 if j == 1:
                     s = "control"
                 else:
                     s = "_control"
-                plt.plot(control.level[start:end], y_slice[start:end], '.b-', label=s)
+                plt.plot(control.variable[start:end], y_slice[start:end], '.b-', label=s)
     if means is not None:
         if means == "both":
             scase = ".k-"
@@ -371,8 +372,8 @@ def plot_category(case, control, means=None, savename="figure.pdf", normalised=T
         else:
             scase = ".r-"
             scontrol = ".b-"
-        plt.plot(case.level[start:end], case_y.mean(axis=0)[start:end], scase, label="treatment")
-        plt.plot(control.level[start:end], control_y.mean(axis=0)[start:end], scontrol, label="control")
+        plt.plot(case.variable[start:end], case_y.mean(axis=0)[start:end], scase, label="treatment")
+        plt.plot(control.variable[start:end], control_y.mean(axis=0)[start:end], scontrol, label="control")
     fig.legend(loc='upper left', bbox_to_anchor=(0.125, .875))  # loc="upperleft"
     #    fig.legend(loc=(0,0),ncol=2)#"upper left")
     fig.savefig(savename)
@@ -400,38 +401,38 @@ def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filenam
             for condition_name, treatment_cond in cancer_model:
                 if condition_name != "Control":
                     # TO ADD: SHOULD START ALSO CONTAIN control.measurement_start?!?
-                    start = max(treatment_cond.find_start_date_index(), treatment_cond.measurement_start)
-                    end = min(treatment_cond.measurement_end, control.measurement_end)
+                    start = max(treatment_cond.find_variable_start_index(), treatment_cond.variable_start_index)
+                    end = min(treatment_cond.variable_end_index, control.variable_end_index)
                     name = str(cancer_model.name) + "*" + str(condition_name)
                     #                    plt.figure(figsize = (24,18))
 
                     fig, axes = plt.subplots(4, 2, figsize=(32, 18))
-                    fig.suptitle(name, fontsize="x-large")
+                    fig.suptitle(name, fontsize="variable-large")
                     axes[0, 0].set_title("Replicates")
 
                     print("Now plotting cancer_model", name)
                     for y_slice in treatment_cond.response_norm:
-                        axes[0, 0].plot(treatment_cond.level[start:end], y_slice[start:end], '.r-')
+                        axes[0, 0].plot(treatment_cond.variable[start:end], y_slice[start:end], '.r-')
 
-                    if control.y_norm is None:
+                    if control.response_norm is None:
                         print("No control for cancer_model %d, category %s" % (n, str(condition_name)))
                         print(cancer_model)
                         print('----')
                     else:
-                        for y_slice in control.y_norm:
-                            axes[0, 0].plot(control.level[start:end], y_slice[start:end], '.b-')
+                        for y_slice in control.response_norm:
+                            axes[0, 0].plot(control.variable[start:end], y_slice[start:end], '.b-')
 
                     axes[1, 0].set_title("Means")
-                    axes[1, 0].plot(treatment_cond.level[start:end], treatment_cond.y_norm.mean(axis=0)[start:end], '.r-')
-                    if control.y_norm is not None:
-                        axes[1, 0].plot(control.level[start:end], control.y_norm.mean(axis=0)[start:end], '.b-')
+                    axes[1, 0].plot(treatment_cond.variable[start:end], treatment_cond.response_norm.mean(axis=0)[start:end], '.r-')
+                    if control.response_norm is not None:
+                        axes[1, 0].plot(control.variable[start:end], control.response_norm.mean(axis=0)[start:end], '.b-')
 
                     axes[1, 1].set_title("Pointwise KL divergence")
 
                     if fit_gp:
-                        axes[1, 1].plot(treatment_cond.level[start:end + 1].ravel(),
+                        axes[1, 1].plot(treatment_cond.variable[start:end + 1].ravel(),
                                         [pointwise_kl(treatment_cond, control, t).ravel()[0] for t in
-                                         treatment_cond.level[start:end + 1].ravel()], 'ro')
+                                         treatment_cond.variable[start:end + 1].ravel()], 'ro')
                     else:
                         axes[1, 1].axis("off")
                         axes[1, 1].text(0.05, 0.3, "no GP fitting, hence no KL values")
@@ -488,8 +489,8 @@ def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     """
     responses = stats_df.copy()[["kl"]]
 
-    responses["kulgap"] = stats_df.kl_p_cvsc.apply(lambda x: tsmaller(x, p_val, y=1, n=-1, na=0))
-    responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(lambda x: tsmaller(x, 0.5, y=1, n=-1, na=0))
+    responses["kulgap"] = stats_df.kl_p_cvsc.apply(tsmaller, v2=p_val, y=1, n=-1, na=0)
+    responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(tsmaller, v2=0.5, y=1, n=-1, na=0)
 
     responses["Angle"] = stats_df.apply(
         lambda row: mw_letter_from_strings(row["response_angle_rel"], row["response_angle_rel_control"], pval=p_val,
@@ -606,14 +607,14 @@ def plot_histogram(list_to_be_plotted, varname, marked=None, savename=None, smoo
                    solid=None):
     """
     Plots the histogram of list_to_be_plotted, with an asterix and an arrow at marked
-    Labels the x axis according to varname
+    Labels the variable axis according to varname
     :param list_to_be_plotted: The list to be plotted
-    :param varname: The label for the x-axis
+    :param varname: The label for the variable-axis
     :param marked: Where the arrow is to appear
     :param savename: Filename under which the figure will be saved
     :param smoothed: Either none or a smoothed object
-    :param x_min: The left end point of the range of x-values
-    :param x_max: The right end point of the range of x-values
+    :param x_min: The left end point of the range of variable-values
+    :param x_max: The right end point of the range of variable-values
     :param dashed: Where to draw a vertical dashed line
     :param solid: Where to draw a vertical solid line
     :return:
@@ -724,33 +725,33 @@ def plot_histograms_2c(stats_df, classifiers_df, savename):
 ## -- create_heatmaps.py
 
 # TODO THIS function is to be removed
-# def conservative_score(l1, l2, n, y):
+# def conservative_score(l1, l2, n, response):
 #     """
 
 #     :param l1:
 #     :param l2:
 #     :param n:
-#     :param y:
+#     :param response:
 #     :return:
 #     """
 #     assert len(l1) == len(l2)
 
-#     def convert(x, n, y):  # Convert what to what? Variable names shadow enclosing scope
+#     def convert(variable, n, response):  # Convert what to what? Variable names shadow enclosing scope
 #         """
 #         Add brief description of function here.
 
-#         :param x:
+#         :param variable:
 #         :param n:
-#         :param y:
+#         :param response:
 #         :return:
 #         """
-#         if x == n:
+#         if variable == n:
 #             return -1
-#         if x == y:
+#         if variable == response:
 #             return 1
 #         return 0
 
-#     return (l1.map(lambda x: convert(x, n, y)).sum() - l2.map(lambda x: convert(x, n, y)).sum()) / 2 / len(l1)
+#     return (l1.map(lambda variable: convert(variable, n, response)).sum() - l2.map(lambda variable: convert(variable, n, response)).sum()) / 2 / len(l1)
 
 
 def create_agreements(responders_df):
@@ -776,8 +777,8 @@ def create_agreements(responders_df):
 #     :param agreements_df: [DataFrame]
 #     :return: []
 #     """
-#     conservative_agreements = pd.DataFrame([[conservative_score(agreements_df[x], agreements_df[y], -1, 1) for x in
-#                                              agreements_df.columns] for y in agreements_df.columns])
+#     conservative_agreements = pd.DataFrame([[conservative_score(agreements_df[variable], agreements_df[response], -1, 1) for variable in
+#                                              agreements_df.columns] for response in agreements_df.columns])
 #     agreements_df.rename(columns={"mRECIST-Novartis": "mRECIST"}, inplace=True)
 #     conservative_agreements.columns = agreements_df.columns
 #     conservative_agreements.index = agreements_df.columns

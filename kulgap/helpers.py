@@ -6,8 +6,8 @@ from scipy.integrate import quad
 
 def p_value(l1, l2):
     """
-    returns p-value for each x in l1, based on l2
-    :param l1: The list  of x for which the p-value is to be computed
+    returns p-value for each variable in l1, based on l2
+    :param l1: The list  of variable for which the p-value is to be computed
     :param l2: The list of values on which the p-value calculation is based
     :return: The calculated list of p-values
     """
@@ -39,8 +39,8 @@ def calculate_AUC(x, y):
     """
     Calculates the area under the curve of a set of observations 
 
-    :param x [ndarray] the time points:
-    :param y [ndarray] the observations:
+    :param variable [ndarray] the time points:
+    :param response [ndarray] the observations:
     :return [float] The area under the curve:    
     """
     AUC = 0
@@ -76,9 +76,9 @@ def kl_divergence(case, control):
 
 def cross_kl_divergences(treatment_condition_list):
     """
-    takes a list of categories and computes KL(x,y) for all x and y in the list
+    takes a list of categories and computes KL(variable,response) for all variable and response in the list
     :param treatment_condition_list: A list of TreatmentCondition objects
-    :return: The list of all KL(x,y) as x, y range over cat_list
+    :return: The list of all KL(variable,response) as variable, response range over cat_list
     """
     kl_list = []
     cl = len(treatment_condition_list)
@@ -130,13 +130,13 @@ def dict_to_string(dictionary):
 
 def remove_extremal_nas(y, replacement_value):
     """
-    Replace leading and trailing n/a values in the rows of y by replacement_value
-    Return the modified y, the start (first measurement) and the end (last measurement) dates
+    Replace leading and trailing n/a values in the rows of response by replacement_value
+    Return the modified response, the start (first measurement) and the end (last measurement) dates
 
-    :param y [ndarray] the array to be modified:
+    :param response [ndarray] the array to be modified:
     :param replacement_value [int] The value with which the nas will be replaced:
     :return [tuple] a tuple containing the items:
-        - y the modified ndarray
+        - response the modified ndarray
         - first the last occasion of a leading na
         - last the first occasion of a trailing na
     """
@@ -171,7 +171,7 @@ def forward_fill_nas(arr):
 def relativize(y, start):
     """
     Normalises a numpy array to a given start index.
-    :param y [ndarray] the array to be normalised:
+    :param response [ndarray] the array to be normalised:
     :param start [int] the start index:
     :return [ndarray] the modified array:
     """
@@ -181,7 +181,7 @@ def relativize(y, start):
 def centre(y, start):
     """
     Subtracts the value at index start from a numpy array
-    :param y [ndarray] the array to be modified:
+    :param response [ndarray] the array to be modified:
     :param start [int] the index to centre on:
     :return [ndarray] the modified array
     """
@@ -190,9 +190,9 @@ def centre(y, start):
 
 def compute_response_angle(x, y, start):
     """
-    Calculates the response angle for observations y, given time points x and start point start
-    :param x [ndarray] the time points: 
-    :param y [ndarray] the observations:
+    Calculates the response angle for observations response, given time points variable and start point start
+    :param variable [ndarray] the time points:
+    :param response [ndarray] the observations:
     :param start [umpy array] the start point for the angle computation:
     :return [float] the angle:
     """

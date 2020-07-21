@@ -187,7 +187,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                         assert (cur_case.response_angle is not None)
                         cur_case.response_angle_control = {}
                         for i in range(len(control.replicates)):
-                            # cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(control.x.ravel(),control.y[i],control.find_start_date_index())
+                            # cur_case.response_angle_control[control.replicates[i]] = compute_response_angle(control.variable.ravel(),control.response[i],control.find_start_date_index())
                             start = control.find_start_date_index() - control.measurement_start
                             if start is None:
                                 raise TypeError("The 'start' parameter is None")
@@ -284,17 +284,17 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                             # if cur_case.name not in kl_histograms:
 
                             ###SOMETHING BAD GOING ON HERE:
-                            # kl_histograms[cur_case.name] = [kl_divergence(x,y) for x in categories_by_drug[cur_case.name] for y in categories_by_drug['Control']]
+                            # kl_histograms[cur_case.name] = [kl_divergence(variable,response) for variable in categories_by_drug[cur_case.name] for response in categories_by_drug['Control']]
 
                             try:
                                 if cur_case.kl_divergence is not None:
                                     ####COMPUTE KL DIVERGENCE PVALUES HERE!!
 
                                     ##The old way of computing kl_p_value (by comparing against 
-                                    ## [kl(x,y) for x in same_drug for y in controls]) doesn't really
+                                    ## [kl(variable,response) for variable in same_drug for response in controls]) doesn't really
                                     ## make sense in the aanonymised setting (the `drug' will be simply C1, C2, etc.)
                                     ## therefore replace by same calculation as kl_p_cvsc
-                                    ## cur_case.kl_p_value= (len([x for x in kl_histograms[cur_case.name] if x >= cur_case.kl_divergence]) + 1) / (len(kl_histograms[cur_case.name]) + 1)                                    
+                                    ## cur_case.kl_p_value= (len([variable for variable in kl_histograms[cur_case.name] if variable >= cur_case.kl_divergence]) + 1) / (len(kl_histograms[cur_case.name]) + 1)
                                     cur_case.kl_p_value = (len([x for x in kl_control_vs_control["list"] if
                                                                 x >= cur_case.kl_divergence]) + 1) / (
                                                                   len(kl_control_vs_control["list"]) + 1)
@@ -315,8 +315,8 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 outfile.write(",".join(map(str, value)))
                 outfile.write("\n")
     print("Done computing KL p-values, saved to {}".format(histograms_outfile))
-    # all_kl = [x["case"].kl_divergence for x in get_all_cats(all_cancer_models).values() if
-    #           str(x["case"].kl_divergence) != "nan"]
+    # all_kl = [variable["case"].kl_divergence for variable in get_all_cats(all_cancer_models).values() if
+    #           str(variable["case"].kl_divergence) != "nan"]
 
     with open(out_report, 'w') as f:
         print("Errors during plotting:", file=f)

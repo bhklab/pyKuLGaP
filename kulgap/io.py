@@ -22,26 +22,26 @@ def read_pdx_data(file_path):
         print(pname)
         df_pat = df[df.patient == pname]
         new_pdx_model = CancerModel(name=pname, tumour_type="no_tumour_type",
-                                    level_start=None, treatment_start_date=df_pat.drug_start_day.iloc[0],
-                                    level_end=None, treatment_condition_dict={})
+                                    variable_start=None, variable_treatment_start=df_pat.drug_start_day.iloc[0],
+                                    variable_end=None, treatment_condition_dict={})
 
         for cname in df_pat.category.unique():
             new_cond = None
             print(cname)
             df_cat = df_pat[df_pat.category == cname]
-            level_array = np.array([parse_string_to_ndarray(x) for x in df_cat.day.unique()])
+            variable_array = np.array([parse_string_to_ndarray(x) for x in df_cat.day.unique()])
             response_list = []
             for day in df_cat.day.unique():
                 df_day = df_cat[df_cat.day == day]
                 response_list.append(df_day.volume)
             response_array = np.array(response_list)
-            new_cond = TreatmentCondition(cname, source_id=pname, level=level_array,
+            new_cond = TreatmentCondition(cname, source_id=pname, variable=variable_array,
                                           response=response_array,
                                           replicates=range(response_array.shape[1]),
-                                          treatment_level_start=df_cat.drug_start_day.iloc[0],
+                                          variable_treatment_start=df_cat.drug_start_day.iloc[0],
                                           is_control=df_cat.control.iloc[0] == 1)
-            new_cond.level_start = df_cat.measurement_start.iloc[0]
-            new_cond.level_end = df_cat.measurement_end.iloc[0]
+            new_cond.variable_start = df_cat.measurement_start.iloc[0]
+            new_cond.variable_end = df_cat.measurement_end.iloc[0]
             new_pdx_model.add_treatment_condition(new_cond)
             del new_cond
         new_pdx_model.normalize_treatment_conditions()
@@ -56,15 +56,15 @@ def read_pdx_from_csv_buffer(file_buffer):
     # -- build the TreatmentCondition objects from the df
     control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     control = TreatmentCondition('Control', source_id='from_webapp',
-                                 level=df.Time.to_numpy(), response=control_response,
+                                 variable=df.Time.to_numpy(), response=control_response,
                                  replicates=list(range(control_response.shape[0])),
-                                 treatment_level_start=min(df.Time), is_control=True)
+                                 variable_treatment_start=min(df.Time), is_control=True)
 
     treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     treatment = TreatmentCondition('Control', source_id='from_webapp',
                                    replicates=list(range(treatment_response.shape[0])),
-                                   level=df.Time.to_numpy(), response=treatment_response,
-                                   treatment_level_start=min(df.Time), is_control=False)
+                                   variable=df.Time.to_numpy(), response=treatment_response,
+                                   variable_treatment_start=min(df.Time), is_control=False)
 
     # -- build the CancerModel object from the TreatmentConditions
     treatment_condition_dict = {'Control': control, 'Treatment': treatment}
@@ -72,9 +72,9 @@ def read_pdx_from_csv_buffer(file_buffer):
                                treatment_condition_dict=treatment_condition_dict,
                                model_type="PDX",
                                tumour_type="unknown",
-                               level_start=min(df.Time),
-                               treatment_start_date=min(df.Time),
-                               level_end=max(df.Time))
+                               variable_start=min(df.Time),
+                               variable_treatment_start=min(df.Time),
+                               variable_end=max(df.Time))
 
     # -- build the TreatmentResponseExperiment object from the CancerModel
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
