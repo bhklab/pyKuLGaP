@@ -35,7 +35,7 @@ def get_all_treatment_conditions(treatment_response_experiment):
     return treatment_condition_dict
 
 
-def calculate_AUC(x, y):
+def calculate_AUC(variable, response):
     """
     Calculates the area under the curve of a set of observations 
 
@@ -44,9 +44,9 @@ def calculate_AUC(x, y):
     :return [float] The area under the curve:    
     """
     AUC = 0
-    l = min(len(x), len(y))
-    for j in range(l - 1):
-        AUC += (y[j + 1] - y[j]) / (x[j + 1] - x[j])
+    min_length = min(len(variable), len(response))
+    for j in range(min_length - 1):
+        AUC += (response[j + 1] - response[j]) / (variable[j + 1] - variable[j])
     return AUC
 
 

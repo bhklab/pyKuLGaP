@@ -315,14 +315,17 @@ class CancerModel:
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
+                            # TODO:: Not sure if this is what was intended, but variable and response are now being
+                            #  passed in already subset to the treatment range, thus start will always be the 0
+                            #  index
                             treatment_condition.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.response[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
+                                control.variable[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
                                 centre(control.response[i, start:control.variable_end_index],
                                        0),
-                                start)
+                                0)
                             treatment_condition.response_angle_rel_control[
                                 control.replicates[i]] = compute_response_angle(
-                                control.response[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
+                                control.variable[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
                                 relativize(control.response[i, control.variable_start_index:(
                                         control.variable_end_index + 1)], 0),
                                 0)
