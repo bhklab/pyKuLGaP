@@ -18,7 +18,7 @@ def read_pdx_data(file_path):
     pdx_model_list = []
     df = pd.read_csv(file_path, index_col=0)
     # FIXME:: Remove this subset in the final release!
-    for pname in df.patient.unique()[0:5]:
+    for pname in df.patient.unique()[0:6]:
         new_pdx_model = None
         print(pname)
         df_pat = df[df.patient == pname]
@@ -41,8 +41,8 @@ def read_pdx_data(file_path):
                                           replicates=range(response_array.shape[1]),
                                           variable_treatment_start=df_cat.drug_start_day.iloc[0],
                                           is_control=df_cat.control.iloc[0] == 1)
-            new_cond.variable_start = df_cat.measurement_start.iloc[0]
-            new_cond.variable_end = df_cat.measurement_end.iloc[0]
+            new_cond.variable_treatment_start_index = df_cat.measurement_start.iloc[0]
+            new_cond.variable_treatment_end_index = df_cat.measurement_end.iloc[0]
             new_pdx_model.add_treatment_condition(new_cond)
             del new_cond
         new_pdx_model.normalize_treatment_conditions()

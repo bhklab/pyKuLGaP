@@ -255,8 +255,9 @@ class CancerModel:
             treatment_condition.normalize_data()
             if treatment_condition_name != "Control":
                 treatment_condition.variable_start = max(treatment_condition.find_variable_start_index(),
-                                                         control.variable_start)
-                treatment_condition.end = min(control.variable_end, treatment_condition.variable_end)
+                                                         control.variable_treatment_start)
+                treatment_condition.end = min(control.variable_treatment_end_index,
+                                              treatment_condition.variable_treatment_end_index)
                 treatment_condition.create_full_data(control)
                 assert treatment_condition.full_data.size != 0
 
@@ -312,23 +313,34 @@ class CancerModel:
                     treatment_condition.response_angle_control = {}
                     for i in range(len(control.replicates)):
 
-                        start = control.find_variable_start_index()
+                        start = control.find_variable_start_index() - control.variable_treatment_start_index
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
-                            # TODO:: Not sure if this is what was intended, but variable and response are now being
-                            #  passed in already subset to the treatment range, thus start will always be the 0
-                            #  index
                             treatment_condition.response_angle_control[control.replicates[i]] = \
                                 compute_response_angle(
-                                    variable=control.variable[start:(control.variable_end_index + 1)].ravel(),
-                                    response=centre(control.response[i, start:control.variable_end_index], 0),
-                                    start=0)  # Start is now always zero, since we subset to the treatment range already
+                                    variable=control.variable[
+                                             control.variable_treatment_start_index:
+                                             (control.variable_treatment_end_index + 1)
+                                             ].ravel(),
+                                    response=
+                                    centre(control.response[i,
+                                           control.variable_treatment_start_index:
+                                           control.variable_treatment_end_index],
+                                           start),
+                                    start=start)
                             treatment_condition.response_angle_rel_control[control.replicates[i]] = \
                                 compute_response_angle(
-                                    variable=control.variable[start:(control.variable_end_index + 1)].ravel(),
-                                    response=relativize(control.response[i, start:(control.variable_end_index + 1)], 0),
-                                    start=0)
+                                    variable=control.variable[
+                                             control.variable_treatment_start_index:
+                                             (control.variable_treatment_end_index + 1)
+                                             ].ravel(),
+                                    response=
+                                    relativize(control.response[i,
+                                               control.variable_treatment_start_index:
+                                               control.variable_treatment_end_index],
+                                               start),
+                                    start=start)
 
                 except ValueError as e:
                     failed_response_angle.append((treatment_condition.source_id, e))
@@ -341,15 +353,16 @@ class CancerModel:
                     treatment_condition.calculate_auc_norm(control)
                     if fit_gp:
                         treatment_condition.calculate_gp_auc()
+                        # FIXME:: May need to swap for treatment index
                         treatment_condition.auc_gp_control = \
                             calculate_AUC(
-                                control.variable[control.variable_start:(control.variable_end + 1)],
+                                control.variable[control.variable_start_index:(control.variable_end_index + 1)],
                                 control.gp.predict(
-                                    control.variable[control.variable_start:(control.variable_end + 1)]
+                                    control.variable[control.variable_start_index:(control.variable_end_index + 1)]
                                 )[0])
                     treatment_condition.auc_control = {}
                     start = max(treatment_condition.find_variable_start_index(), control.find_variable_start_index())
-                    end = min(treatment_condition.variable_end, control.variable_end)
+                    end = min(treatment_condition.variable_treatment_end_index, control.variable_treatment_end_index)
                     for i in range(len(control.replicates)):
                         treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(
                             control.variable[start:end],
@@ -683,8 +696,11 @@ class TreatmentCondition:
 
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
-        response_norm_trunc = self.response_norm[:, self.variable_start_index:self.variable_end_index]
-        variable = np.tile(self.variable[self.variable_start_index:self.variable_end_index], (len(self.replicates), 1))
+        response_norm_trunc = self.response_norm[
+                                :, self.variable_treatment_start_index:self.variable_treatment_end_index
+                              ]
+        variable = np.tile(self.variable[self.variable_treatment_start_index:self.variable_treatment_end_index],
+                           (len(self.replicates), 1))
         response = np.resize(response_norm_trunc, (response_norm_trunc.shape[0] * response_norm_trunc.shape[1], 1))
         ## FIXME:: Does the GPR model keep the sample size or do we need to record it here?
         self.gp = GPRegression(variable, response, self.gp_kernel)
@@ -728,7 +744,7 @@ class TreatmentCondition:
             return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
                     (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-        max_x_index = min(self.variable_end_index, control.variable_end_index)
+        max_x_index = min(self.variable_treatment_end_index, control.variable_treatment_end_index)
 
         if control.response.shape[1] > self.response.shape[1]:
             self.kl_divergence = abs(1 / (self.variable[max_x_index] - self.variable_treatment_start) *
@@ -870,7 +886,7 @@ class TreatmentCondition:
         :return [None]:
         """
         start = max(self.find_variable_start_index(), control.find_variable_start_index())
-        end = min(self.variable_end_index, control.variable_end_index)
+        end = min(self.variable_treatment_end_index, control.variable_treatment_end_index)
         for i in range(len(self.replicates)):
             self.auc[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                 self.response[i, start:end])
@@ -882,7 +898,7 @@ class TreatmentCondition:
         :return [None]:
         """
         start = max(self.find_variable_start_index(), control.find_variable_start_index())
-        end = min(self.variable_end_index, control.variable_end_index)
+        end = min(self.variable_treatment_end_index, control.variable_treatment_end_index)
         for i in range(len(self.replicates)):
             self.auc_norm[self.replicates[i]] = self.__calculate_AUC(self.variable.ravel()[start:end],
                                                                      self.response_norm[i, start:end])
@@ -899,7 +915,7 @@ class TreatmentCondition:
         :return [None]
         """
         start = self.find_variable_start_index()
-        end = self.variable_end_index
+        end = self.variable_treatment_end_index
         for i in range(len(self.replicates) - 1):
             # days_volume = zip(self.variable.ravel(), self.response[i])
 

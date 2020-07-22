@@ -189,7 +189,7 @@ def centre(response, start):
     return response - response[start]
 
 
-def compute_response_angle(variable, response, start):
+def compute_response_angle(variable: object, response: object, start: object) -> object:
     """
     Calculates the response angle for observations response, given time points variable and start point start
     :param variable [ndarray] the time points:
