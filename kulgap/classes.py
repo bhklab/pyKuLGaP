@@ -319,17 +319,16 @@ class CancerModel:
                             # TODO:: Not sure if this is what was intended, but variable and response are now being
                             #  passed in already subset to the treatment range, thus start will always be the 0
                             #  index
-                            treatment_condition.response_angle_control[control.replicates[i]] = compute_response_angle(
-                                control.variable[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
-                                centre(control.response[i, start:control.variable_end_index],
-                                       0),
-                                0)
-                            treatment_condition.response_angle_rel_control[
-                                control.replicates[i]] = compute_response_angle(
-                                control.variable[control.variable_start_index:(control.variable_end_index + 1)].ravel(),
-                                relativize(control.response[i, control.variable_start_index:(
-                                        control.variable_end_index + 1)], 0),
-                                0)
+                            treatment_condition.response_angle_control[control.replicates[i]] = \
+                                compute_response_angle(
+                                    variable=control.variable[start:(control.variable_end_index + 1)].ravel(),
+                                    response=centre(control.response[i, start:control.variable_end_index], 0),
+                                    start=0)  # Start is now always zero, since we subset to the treatment range already
+                            treatment_condition.response_angle_rel_control[control.replicates[i]] = \
+                                compute_response_angle(
+                                    variable=control.variable[start:(control.variable_end_index + 1)].ravel(),
+                                    response=relativize(control.response[i, start:(control.variable_end_index + 1)], 0),
+                                    start=0)
 
                 except ValueError as e:
                     failed_response_angle.append((treatment_condition.source_id, e))

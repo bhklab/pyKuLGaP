@@ -129,7 +129,7 @@ def dict_to_string(dictionary):
     return "_".join([str(key) + ":" + str(value) for key, value in dictionary.items()])
 
 
-def remove_extremal_nas(y, replacement_value):
+def remove_extremal_nas(response, replacement_value):
     """
     Replace leading and trailing n/a values in the rows of response by replacement_value
     Return the modified response, the start (first measurement) and the end (last measurement) dates
@@ -143,16 +143,16 @@ def remove_extremal_nas(y, replacement_value):
     """
     firsts = []
     lasts = []
-    for j, y_slice in enumerate(y):
-        ind = np.where(~np.isnan(y_slice))[0]
-        firsts.append(ind[0])
-        lasts.append(ind[-1])
+    for j, response_slice in enumerate(response):
+        not_nan_idx = np.where(~np.isnan(response_slice))[0]
+        firsts.append(not_nan_idx[0])
+        lasts.append(not_nan_idx[-1])
 
-        y[j, :firsts[-1]] = replacement_value
-        y[j, lasts[-1] + 1:] = replacement_value
+        response[j, :firsts[-1]] = replacement_value
+        response[j, lasts[-1] + 1:] = replacement_value
     first = max(firsts)
     last = min(lasts)
-    return y, first, last
+    return response, first, last
 
 
 def forward_fill_nas(arr):
@@ -169,27 +169,27 @@ def forward_fill_nas(arr):
     return out
 
 
-def relativize(y, start):
+def relativize(response, start):
     """
     Normalises a numpy array to a given start index.
     :param response [ndarray] the array to be normalised:
     :param start [int] the start index:
     :return [ndarray] the modified array:
     """
-    return (y / y[start]) - 1
+    return (response / response[start]) - 1
 
 
-def centre(y, start):
+def centre(response, start):
     """
     Subtracts the value at index start from a numpy array
     :param response [ndarray] the array to be modified:
     :param start [int] the index to centre on:
     :return [ndarray] the modified array
     """
-    return y - y[start]
+    return response - response[start]
 
 
-def compute_response_angle(x, y, start):
+def compute_response_angle(variable, response, start):
     """
     Calculates the response angle for observations response, given time points variable and start point start
     :param variable [ndarray] the time points:
@@ -197,7 +197,7 @@ def compute_response_angle(x, y, start):
     :param start [umpy array] the start point for the angle computation:
     :return [float] the angle:
     """
-    l = min(len(x), len(y))
-    model = sm.OLS(y[start:l], x[start:l], missing='drop')
+    min_length = min(len(variable), len(response))
+    model = sm.OLS(response[start:min_length], variable[start:min_length], missing='drop')
     results = model.fit()
     return np.arctan(results.params[0])
