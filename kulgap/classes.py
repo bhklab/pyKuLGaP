@@ -654,9 +654,9 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[self.variable_start_index:self.variable_end_index + 1],
-                       control.response_norm.mean(axis=0)[self.variable_start_index:self.variable_end_index + 1], 0,
-                       self.variable_end_index - self.variable_start_index)
+        self.tgi = TGI(self.response_norm.mean(axis=0)[self.find_variable_start_index():self.variable_end_index + 1],
+                       control.response_norm.mean(axis=0)[self.find_variable_start_index():self.variable_end_index + 1],
+                       0, self.variable_end_index - self.find_variable_start_index())
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
