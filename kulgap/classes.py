@@ -344,9 +344,9 @@ class CancerModel:
                         treatment_condition.calculate_gp_auc()
                         treatment_condition.auc_gp_control = \
                             calculate_AUC(
-                                control.response[control.find_variable_start_index():(control.variable_end + 1)],
+                                control.variable[control.find_variable_start_index():(control.variable_end + 1)],
                                 control.gp.predict(
-                                    control.response[control.find_variable_start_index():(control.variable_end + 1)]
+                                    control.variable[control.find_variable_start_index():(control.variable_end + 1)]
                                 )[0])
                     treatment_condition.auc_control = {}
                     start = max(treatment_condition.find_variable_start_index(), control.find_variable_start_index())
