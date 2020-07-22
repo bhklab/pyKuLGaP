@@ -346,7 +346,7 @@ class CancerModel:
                             calculate_AUC(
                                 control.variable[control.variable_start:(control.variable_end + 1)],
                                 control.gp.predict(
-                                    control.variable[control.variable_end:(control.variable_end + 1)]
+                                    control.variable[control.variable_start:(control.variable_end + 1)]
                                 )[0])
                     treatment_condition.auc_control = {}
                     start = max(treatment_condition.find_variable_start_index(), control.find_variable_start_index())
