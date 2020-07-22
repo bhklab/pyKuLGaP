@@ -54,10 +54,7 @@ for model_name, cancer_model in treatment_response_experiment:
     cancer_model.compute_other_measures(fit_gp=False)
     cancer_model.fit_all_gps()
 
-## TODO:: Determine if I need to pass back the treatment_response_experiment or just the summary stats
-# patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
-
 # -- extract summary statistics and dump to json
-# stats_json = pd.DataFrame.from_dict(
-#     create_measurement_dict(treatment_response_experiment.cancer_models)
-# ).transpose().to_json()
+#stats_json = pd.DataFrame.from_dict(
+create_measurement_dict(treatment_response_experiment.cancer_models)
+#).transpose().to_json()
