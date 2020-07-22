@@ -28,8 +28,8 @@ def create_measurement_dict(all_models, kl_null_filename=None):
     if kl_null_filename is not None:
         kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
     else:
-        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[model.treatment_conditions
-                                                                            for model in all_models])
+        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[treatment_cond for model in all_models for
+                                                                            _, treatment_cond in model])
 
     for name, cancer_model in all_models:
         control = cancer_model.treatment_conditions.get('Control')

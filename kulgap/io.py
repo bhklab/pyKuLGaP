@@ -56,16 +56,28 @@ def read_pdx_from_byte_stream(file_buffer):
 
     # -- build the TreatmentCondition objects from the df
     control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
-    control = TreatmentCondition('Control', source_id='from_webapp',
-                                 variable=df.Time.to_numpy(), response=control_response,
-                                 replicates=list(range(control_response.shape[0])),
-                                 variable_treatment_start=min(df.Time), is_control=True)
+    variable = df.Time.to_numpy()
+    treatment_response = df.iloc[:, [bool(re.match('Treatment.*', col)) for col in df.columns]].to_numpy()
 
-    treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
-    treatment = TreatmentCondition('Control', source_id='from_webapp',
-                                   replicates=list(range(treatment_response.shape[0])),
-                                   variable=df.Time.to_numpy(), response=treatment_response,
-                                   variable_treatment_start=min(df.Time), is_control=False)
+    # -- subset to death of first mouse
+    # Determine index of first mouse death to remove all NaNs before fitting the model
+    first_death_idx = min(min(np.sum(~np.isnan(control_response), axis=0)),
+                          min(np.sum(~np.isnan(treatment_response), axis=0)))
+
+    control_response = control_response[0:first_death_idx, :]
+    treatment_response = treatment_response[0:first_death_idx, :]
+    variable = variable[0:first_death_idx]
+
+    control = TreatmentCondition('Control', source_id='from_webapp',
+                                 variable=variable, response=control_response,
+                                 replicates=list(range(control_response.shape[1])),
+                                 variable_treatment_start=min(df.variable), is_control=True)
+
+
+    treatment = TreatmentCondition('Treatment', source_id='from_webapp',
+                                   replicates=list(range(treatment_response.shape[1])),
+                                   variable=variable, response=treatment_response,
+                                   variable_treatment_start=min(variable), is_control=False)
 
     # -- build the CancerModel object from the TreatmentConditions
     treatment_condition_dict = {'Control': control, 'Treatment': treatment}

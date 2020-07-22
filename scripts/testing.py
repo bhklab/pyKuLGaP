@@ -17,23 +17,37 @@ data_path = os.path.join(os.getcwd(), "data")
 
 file_path = os.path.join(data_path, 'alldata_new.csv')
 
-
 file_buffer = open(os.path.join(data_path, 'kulgap_webapp_data.csv'), 'r')
 
 df = pd.read_csv(file_buffer)
 
 # -- build the TreatmentCondition objects from the df
 control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
-control = TreatmentCondition('Control', source_id='from_webapp',
-                             variable=df.Time.to_numpy().T, response=control_response,
-                             replicates=list(range(control_response.shape[1])),
-                             variable_treatment_start=min(df.Time), is_control=True)
+variable = df.Time.to_numpy()
+treatment_response = df.iloc[:, [bool(re.match('Treatment.*', col)) for col in df.columns]].to_numpy()
 
-treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
-treatment = TreatmentCondition('Control', source_id='from_webapp',
+if control_response.shape != treatment_response.shape:
+    raise ValueError("Oh no! We can't seem to parse your control and treatment columns. Please ensure the correct"
+                     "formatting has been used for you .csv file.")
+
+# -- subset to death of first mouse
+# Determine index of first mouse death to remove all NaNs before fitting the model
+first_death_idx = min(min(np.sum(~np.isnan(control_response), axis=0)),
+                      min(np.sum(~np.isnan(treatment_response), axis=0)))
+
+control_response = control_response[0:first_death_idx, :]
+treatment_response = treatment_response[0:first_death_idx, :]
+variable = variable[0:first_death_idx]
+
+control = TreatmentCondition('Control', source_id='from_webapp',
+                             variable=variable, response=control_response,
+                             replicates=list(range(control_response.shape[1])),
+                             variable_treatment_start=min(variable), is_control=True)
+
+treatment = TreatmentCondition('Treatment', source_id='from_webapp',
                                replicates=list(range(treatment_response.shape[1])),
-                               variable=df.Time.to_numpy().T, response=treatment_response,
-                               variable_treatment_start=min(df.Time), is_control=False)
+                               variable=variable, response=treatment_response,
+                               variable_treatment_start=min(variable), is_control=False)
 
 # -- build the CancerModel object from the TreatmentConditions
 treatment_condition_dict = {'Control': control, 'Treatment': treatment}
@@ -51,8 +65,8 @@ treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[c
 # -- fit gaussian process models and calculate statistics
 for model_name, cancer_model in treatment_response_experiment:
     cancer_model.normalize_treatment_conditions()
-    cancer_model.compute_other_measures(fit_gp=False)
     cancer_model.fit_all_gps()
+    cancer_model.compute_other_measures(fit_gps=True)
 
 # -- extract summary statistics and dump to json
 #stats_json = pd.DataFrame.from_dict(

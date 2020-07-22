@@ -126,7 +126,7 @@ full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,kl_nu
 old_stats_df = pd.read_csv('../old_stats_df.csv')
 old_stats_df = old_stats_df[full_stats_df.columns]
 
-i = 1
+i = 4
 pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
 #old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]

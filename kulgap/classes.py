@@ -707,15 +707,15 @@ class TreatmentCondition:
                                 :, self.variable_treatment_start_index:self.variable_treatment_end_index
                               ]
 
-        # Determine index of first mouse death to remove all NaNs before fitting the model
-        first_death_idx = min(np.sum(~np.isnan(response_norm_trunc), axis=1))
-
-        # Subset the independent variable and response data
-        response_norm_trunc = response_norm_trunc[:, 0:first_death_idx]
-        variable_trunc = self.variable[0:first_death_idx]
+        # # Determine index of first mouse death to remove all NaNs before fitting the model
+        # first_death_idx = min(np.sum(~np.isnan(response_norm_trunc), axis=1))
+        #
+        # # Subset the independent variable and response data
+        # response_norm_trunc = response_norm_trunc[:, 0:first_death_idx]
+        # variable_trunc = self.variable[0:first_death_idx, :]
 
         # Reshape the data to pass into GPRegression (flatten into a single column)
-        variable = np.tile(variable_trunc[self.variable_treatment_start_index:self.variable_treatment_end_index],
+        variable = np.tile(self.variable[self.variable_treatment_start_index:self.variable_treatment_end_index],
                            (len(self.replicates), 1))
         response = np.resize(response_norm_trunc, (response_norm_trunc.shape[0] * response_norm_trunc.shape[1], 1))
 
@@ -723,6 +723,9 @@ class TreatmentCondition:
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 
         if control is not None:
+            # Subset full data for control calculations
+            # self.full_data = self.full_data[np.isin(self.full_data[:, 0], variable_trunc), :]
+
             # kernels
             self.gp_h0_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
             self.gp_h1_kernel = RBF(input_dim=2, variance=1., ARD=True)

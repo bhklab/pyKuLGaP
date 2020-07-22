@@ -65,13 +65,15 @@ def kl_divergence(case, control):
         return ((var_control + (mean_control - mean_case) ** 2) / (2 * var_case)) + (
                 (var_case + (mean_case - mean_control) ** 2) / (2 * var_control)) - 1
 
-    max_x_index = min(case.measurement_end, control.measurement_end)
-    if control.y.shape[1] > case.y.shape[1]:
-        kl_divergence = abs(1 / (case.x[max_x_index] - case.drug_start_day) *
-                            quad(kl_integrand, case.drug_start_day, case.x[max_x_index], limit=100)[0])[0] / 11
+    max_x_index = min(case.variable_treatment_end_index, control.variable_treatment_end_index)
+    if control.response.shape[1] > case.response.shape[1]:
+        kl_divergence = abs(1 / (case.variable[max_x_index] - case.variable_treatment_start) *
+                            quad(kl_integrand, case.variable_treatment_start, case.variable[max_x_index],
+                                 limit=100)[0])[0] / 11
     else:
-        kl_divergence = abs(1 / (control.x[max_x_index] - case.drug_start_day) *
-                            quad(kl_integrand, case.drug_start_day, control.x[max_x_index], limit=100)[0])[0] / 11
+        kl_divergence = abs(1 / (control.variable[max_x_index] - case.variable_treatment_start) *
+                            quad(kl_integrand, case.variable_treatment_start, control.variable[max_x_index],
+                                 limit=100)[0])[0] / 11
     return kl_divergence
 
 
@@ -85,7 +87,7 @@ def cross_kl_divergences(treatment_condition_list):
     cl = len(treatment_condition_list)
 
     for i in range(cl):
-        print(f"done {i} out of {cl}")
+        print(f"done {i+1} out of {cl}")
         for j in range(i):
             new_kl = kl_divergence(treatment_condition_list[i], treatment_condition_list[j])
             if (new_kl is not None) and (str(new_kl) != "nan") and str(new_kl) != "inf":
