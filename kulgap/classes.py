@@ -311,7 +311,7 @@ class CancerModel:
                     treatment_condition.calculate_response_angles(control)
                     assert (treatment_condition.response_angle is not None)
                     treatment_condition.response_angle_control = {}
-                    for i in range(len(control.replicates)):
+                    for i in control.replicates:
 
                         start = control.find_variable_start_index() - control.variable_treatment_start_index
                         if start is None:
@@ -356,14 +356,15 @@ class CancerModel:
                         # FIXME:: May need to swap for treatment index
                         treatment_condition.auc_gp_control = \
                             calculate_AUC(
-                                control.variable[control.variable_start_index:(control.variable_end_index + 1)],
+                                control.variable[control.variable_treatment_start_index:
+                                                 (control.variable_treatment_end_index + 1)],
                                 control.gp.predict(
-                                    control.variable[control.variable_start_index:(control.variable_end_index + 1)]
-                                )[0])
+                                    control.variable[control.variable_treatment_start_index:
+                                                     (control.variable_treatment_end_index + 1)])[0])
                     treatment_condition.auc_control = {}
-                    start = max(treatment_condition.find_variable_start_index(), control.find_variable_start_index())
+                    start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start_index)
                     end = min(treatment_condition.variable_treatment_end_index, control.variable_treatment_end_index)
-                    for i in range(len(control.replicates)):
+                    for i in control.replicates:
                         treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(
                             control.variable[start:end],
                             control.response[i, start:end])
@@ -495,16 +496,20 @@ class TreatmentCondition:
         self.variable = np.asarray([[var] for var in variable])
         self.response = np.asarray(response.T).astype(float)
         self.response_norm = None
-        self.variable_end = self.variable[-1]
+        self.variable_end = self.variable[-1][0]
         # TODO:: Is there any situation where np.array indexing doesn't start at 0?
-        self.variable_start = self.variable[0]
-        self.variable_treatment_start = variable_treatment_start if variable_treatment_start is not None else self.variable_start
+        self.variable_start = self.variable[0][0]
+        self.variable_treatment_start = variable_treatment_start if variable_treatment_start is not None else \
+            self.variable_start
 
         self.start = None
         self.end = None
 
         self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
         self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
+
+        self.variable_treatment_start_index = self.variable_start_index
+        self.variable_treatment_end_index = self.variable_end_index
 
         self.source_id = source_id
         self.replicates = replicates if isinstance(replicates, list) else list(replicates)
@@ -666,9 +671,11 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[self.find_variable_start_index():self.variable_end_index + 1],
-                       control.response_norm.mean(axis=0)[self.find_variable_start_index():self.variable_end_index + 1],
-                       0, self.variable_end_index - self.find_variable_start_index())
+        self.tgi = TGI(self.response_norm.mean(axis=0)[self.find_variable_start_index():
+                                                       (self.variable_treatment_end_index + 1)],
+                       control.response_norm.mean(axis=0)[self.find_variable_start_index():
+                                                          (self.variable_treatment_end_index + 1)],
+                       0, self.variable_treatment_end_index - self.find_variable_start_index())
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -699,10 +706,19 @@ class TreatmentCondition:
         response_norm_trunc = self.response_norm[
                                 :, self.variable_treatment_start_index:self.variable_treatment_end_index
                               ]
-        variable = np.tile(self.variable[self.variable_treatment_start_index:self.variable_treatment_end_index],
+
+        # Determine index of first mouse death to remove all NaNs before fitting the model
+        first_death_idx = min(np.sum(~np.isnan(response_norm_trunc), axis=1))
+
+        # Subset the independent variable and response data
+        response_norm_trunc = response_norm_trunc[:, 0:first_death_idx]
+        variable_trunc = self.variable[0:first_death_idx]
+
+        # Reshape the data to pass into GPRegression (flatten into a single column)
+        variable = np.tile(variable_trunc[self.variable_treatment_start_index:self.variable_treatment_end_index],
                            (len(self.replicates), 1))
         response = np.resize(response_norm_trunc, (response_norm_trunc.shape[0] * response_norm_trunc.shape[1], 1))
-        ## FIXME:: Does the GPR model keep the sample size or do we need to record it here?
+
         self.gp = GPRegression(variable, response, self.gp_kernel)
         self.gp.optimize_restarts(num_restarts=num_restarts, messages=False)
 

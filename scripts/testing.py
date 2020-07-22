@@ -25,14 +25,14 @@ df = pd.read_csv(file_buffer)
 # -- build the TreatmentCondition objects from the df
 control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
 control = TreatmentCondition('Control', source_id='from_webapp',
-                             level=df.Time.to_numpy(), response=control_response,
-                             replicates=list(range(control_response.shape[0])),
+                             variable=df.Time.to_numpy().T, response=control_response,
+                             replicates=list(range(control_response.shape[1])),
                              variable_treatment_start=min(df.Time), is_control=True)
 
 treatment_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
 treatment = TreatmentCondition('Control', source_id='from_webapp',
                                replicates=list(range(treatment_response.shape[1])),
-                               level=df.Time.to_numpy(), response=treatment_response,
+                               variable=df.Time.to_numpy().T, response=treatment_response,
                                variable_treatment_start=min(df.Time), is_control=False)
 
 # -- build the CancerModel object from the TreatmentConditions
@@ -52,7 +52,7 @@ treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[c
 for model_name, cancer_model in treatment_response_experiment:
     cancer_model.normalize_treatment_conditions()
     cancer_model.compute_other_measures(fit_gp=False)
-    #cancer_model.fit_all_gps()
+    cancer_model.fit_all_gps()
 
 ## TODO:: Determine if I need to pass back the treatment_response_experiment or just the summary stats
 # patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
