@@ -116,7 +116,7 @@ class TreatmentResponseExperiment:
         else:
             return dict(zip(self.model_names, self.cancer_models))
 
-    def compute_all_statistics(self, null_kl_filename, fit_gps=True):
+    def compute_all_statistics(self, null_kl_filename='', fit_gps=True):
         for _, cancer_model in self:
             cancer_model.normalize_treatment_conditions()
             if fit_gps:
@@ -124,7 +124,7 @@ class TreatmentResponseExperiment:
             cancer_model.calculate_other_measures(fit_gp=fit_gps)
         if not null_kl_filename:
             null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
-        self.__summary_stats_df = pd.DataFrame.from_dict(create_measurement_dict(self, None)).transpose()
+        self.__summary_stats_df = pd.DataFrame.from_dict(create_measurement_dict(self, null_kl_filename)).transpose()
 
 
 # -- Helper classes for TreatmentResponseExperiment
