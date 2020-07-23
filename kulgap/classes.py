@@ -600,8 +600,8 @@ class TreatmentCondition:
         self.credible_intervals = []
         self.percent_credible_intervals = None
 
-        self.rates_array = np.array([])
-        self.rates_array_control = np.array([])
+        self.rates_list = []
+        self.rates_list_control = []
 
         # Full Data is all of the data of the treatments and control
         self.full_data = np.array([])
@@ -706,7 +706,7 @@ class TreatmentCondition:
     def calculate_tgi(self, control):
         """
         Calculates the Tumour Growth Index of a ExperimentalCondition object
-        :param control [Boolean] whether the treatment_condition is from the control group:
+        :param control [Boolean] whether the treatment_condition is from the control group
         :return [None] Writes the calculated value into self.tgi
         """
 
@@ -715,11 +715,13 @@ class TreatmentCondition:
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
         start = max(self.find_variable_start_index(), control.variable_treatment_start_index)
-        end = min(self.variable_treatment_end_index, control.variable_treatment_end_index)
+        print(f"Start index is {start}")
+        end = min(self.variable_treatment_end_index, control.variable_treatment_end_index) + 1
+        print(f"End index is {end}")
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[start:(end + 1)],
-                       control.response_norm.mean(axis=0)[start:(end + 1)],
-                       0, start - end)
+        self.tgi = TGI(self.response_norm.mean(axis=0)[start:end],
+                       control.response_norm.mean(axis=0)[start:end],
+                       0, end - start - 1)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
@@ -1157,16 +1159,21 @@ class TreatmentCondition:
     def compute_all_gp_derivatives(self, control):
         """
         :param control [ExperimentalCondition] The control `ExperimentalCondition` for the current `CancerModel`
-        :return: [None] Sets the `rates_array` attribute
+        :return: [None] Sets the `rates_list` attribute
         """
+
+        if not isinstance(self.rates_list, list):
+            self.rates_list = list(self.rates_list)
+        if not isinstance(self.rates_list_control, list):
+            self.rates_list_control = list(self.rates_list_control)
 
         logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
         for var in self.variable:
-            np.append(self.rates_array, self.__gp_derivative(var, self.gp)[0])
+            self.rates_list.append(self.__gp_derivative(var, self.gp)[0])
         for var in control.variable:
-            np.append(self.rates_array_control, self.__gp_derivative(var, control.gp)[0])
-        self.rates_array = np.ravel(self.rates_array)
-        self.rates_array_control = np.ravel(self.rates_array_control)
+            self.rates_list_control.append(self.__gp_derivative(var, control.gp)[0])
+        self.rates_list = np.ravel(self.rates_list)
+        self.rates_list_control = np.ravel(self.rates_list_control)
         logger.info("Done calcluating GP derivatives for: " + self.name + ' and control')
 
     def plot_with_control(self, control=None, output_path=None, show_kl_divergence=True, show_legend=True,
@@ -1241,4 +1248,4 @@ class TreatmentCondition:
                            f"K-L P-Value: {self.kl_p_value}",
                            f"mRecist: {self.mrecist}",
                            f"Percent Credible Interval: {self.percent_credible_intervals}",
-                           f"Rates List: {self.rates_array}"]))
+                           f"Rates List: {self.rates_list}"]))

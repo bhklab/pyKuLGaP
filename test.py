@@ -99,33 +99,29 @@ failed_mrecist = []
 allowed_list = []
 
 P_VAL = 0.05
-fit_gp=True
+fit_gp= True
+
+
 
 
 all_patients = read_pdx_data(anon_filename)
+tc = all_patients.cancer_models[0].treatment_conditions.get("C1")
+cc = all_patients.cancer_models[0].treatment_conditions.get("Control")
 
 
-for model_name, CancerModel in all_patients:
-    if fit_gp:
-        CancerModel.fit_all_gps()
-    CancerModel.compute_summary_statistics(fit_gp, report_name=out_report)
+
+full_stats_df = all_patients.summary_stats_df
         
-        
-            
-
-
 
 
 # =============================================================================
 # COMPILATION OF STATISTICS
 # =============================================================================
 
-full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients, None)).transpose()
-
 old_stats_df = pd.read_csv('https://raw.githubusercontent.com/bhklab/pyKuLGaP/8413a329ad64da4f8e1a2a8efd87d856619d3937/results/statistics_all.csv')
 old_stats_df = old_stats_df[full_stats_df.columns]
 
-i = 4
+i = 0
 pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
 # #old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]

@@ -388,8 +388,8 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                     stats_dict[key]['kl'] = cur_case.kl_divergence
                     stats_dict[key]['kl_p_value'] = cur_case.kl_p_value
                     stats_dict[key]['kl_p_cvsc'] = cur_case.kl_p_cvsc
-                    stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_array)
-                    stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_array_control)
+                    stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_list)
+                    stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_list_control)
 
                     stats_dict[key]['auc'] = dict_to_string(cur_case.auc)
                     stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)
