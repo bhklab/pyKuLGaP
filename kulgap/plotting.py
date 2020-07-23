@@ -28,8 +28,8 @@ def create_measurement_dict(all_models, kl_null_filename=None):
     if kl_null_filename is not None:
         kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
     else:
-        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[treatment_cond for model in all_models for
-                                                                            _, treatment_cond in model])
+        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[treatment_cond for _, model in all_models
+                                                                            for _, treatment_cond in model])
 
     for name, cancer_model in all_models:
         control = cancer_model.treatment_conditions.get('Control')
@@ -68,8 +68,10 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                                                 x >= cur_case.kl_divergence]) + 1) / (
                                                   len(kl_control_vs_control["list"]) + 1)
 
-                    cur_case.kl_p_cvsc = 1 - kl_control_vs_control["smoothed"].cdf(
-                        [cur_case.kl_divergence])
+                    if kl_control_vs_control["smoothed"] is not None:
+                        cur_case.kl_p_cvsc = 1 - kl_control_vs_control["smoothed"].cdf([cur_case.kl_divergence])
+                    else:
+                        cur_case.kl_p_cvsc = None
 
                 num_replicates = len(cur_case.replicates)
                 stats_dict[key]['mRECIST'] = dict_to_string(cur_case.mrecist)

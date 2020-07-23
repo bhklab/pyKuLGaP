@@ -118,7 +118,10 @@ def calculate_null_kl(treatment_condition_list=None, filename=None):
         null_kl_data = list(pd.read_csv(filename, header=None)[0])
     else:
         raise ValueError("Only one of `filename` or `treatment_condition_list` can be passed as a parameter!")
-    smoothed_null_kl = cv_smoothing(null_kl_data)
+    if len(null_kl_data) > 1:
+        smoothed_null_kl = cv_smoothing(null_kl_data)
+    else:
+        smoothed_null_kl = None
     return {"list": null_kl_data, "smoothed": smoothed_null_kl}
 
 

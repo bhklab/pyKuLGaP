@@ -119,9 +119,7 @@ for model_name, CancerModel in all_patients:
 # COMPILATION OF STATISTICS
 # =============================================================================
 
-
-
-full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,kl_null_filename)).transpose()
+full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,None)).transpose()
 
 old_stats_df = pd.read_csv('../old_stats_df.csv')
 old_stats_df = old_stats_df[full_stats_df.columns]

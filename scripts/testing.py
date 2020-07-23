@@ -66,7 +66,7 @@ treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[c
 for model_name, cancer_model in treatment_response_experiment:
     cancer_model.normalize_treatment_conditions()
     cancer_model.fit_all_gps()
-    cancer_model.compute_other_measures(fit_gps=True)
+    cancer_model.compute_other_measures(fit_gp=True)
 
 # -- extract summary statistics and dump to json
 #stats_json = pd.DataFrame.from_dict(
