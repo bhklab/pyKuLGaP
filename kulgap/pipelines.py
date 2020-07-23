@@ -277,7 +277,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 if patient.name not in ignore_list:
                     for category in patient.treatment_condition.keys():
                         if category != 'Control':
-                            print("TreatmentCondition: ", category)
+                            print("ExperimentalCondition: ", category)
                             cur_case = patient.treatment_condition[category]
 
                             # IF FIRST OCCURRENCE OF DRUG: COMPUTE HISTOGRAM OF KL DIVERGENCES

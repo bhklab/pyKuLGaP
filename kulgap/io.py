@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import os
 import re
 import io
 
@@ -60,7 +59,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
 
     :param csv_byte_stream [bytes] A byte stream passed from the web application containing the .csv data for
         a PDX experiment.
-    :return [string] A JSON string containing the summary statistics for the PDX experiment.
+    :return [TreatmentResponseExperiment] object containing the data from the .csv byte stream
     """
     stream = io.StringIO(csv_byte_stream.decode('utf-8'))
     df = pd.read_csv(stream)
@@ -84,7 +83,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     treatment_response = treatment_response[0:first_death_idx, :]
     variable = variable[0:first_death_idx]
 
-    # -- build the TreatmentCondition objects from the df
+    # -- build the ExperimentalCondition objects from the df
     control = TreatmentCondition('Control', source_id='from_webapp',
                                  variable=variable, response=control_response,
                                  replicates=list(range(control_response.shape[1])),
@@ -112,9 +111,13 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     for model_name, cancer_model in treatment_response_experiment:
         cancer_model.normalize_treatment_conditions()
         cancer_model.fit_all_gps()
-        cancer_model.compute_other_measures(fit_gp=True)
+        cancer_model.compute_summary_statistics(fit_gp=True)
 
-    # TODO: Dynamically find path to data folder?
+    return treatment_response_experiment
+
+
+def calculate_summary_stats_df(treatment_response_experiment):
+
     kl_null_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
 
     # -- extract summary statistics and dump to json

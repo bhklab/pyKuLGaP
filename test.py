@@ -19,6 +19,7 @@ from kulgap.plotting import plot_everything, create_and_plot_agreements, get_cla
         create_measurement_dict, create_measurement_df
 
 from kulgap.io import read_pdx_data
+from kulgap.classes import *
 
 results_folder = "results"
 data_folder = "data/"
@@ -107,7 +108,7 @@ all_patients = read_pdx_data(anon_filename)
 for model_name, CancerModel in all_patients:
     if fit_gp:
         CancerModel.fit_all_gps()
-    CancerModel.compute_other_measures(fit_gp, report_name=out_report)
+    CancerModel.compute_summary_statistics(fit_gp, report_name=out_report)
         
         
             
@@ -119,7 +120,7 @@ for model_name, CancerModel in all_patients:
 # COMPILATION OF STATISTICS
 # =============================================================================
 
-full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,None)).transpose()
+full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients, None)).transpose()
 
 old_stats_df = pd.read_csv('https://raw.githubusercontent.com/bhklab/pyKuLGaP/8413a329ad64da4f8e1a2a8efd87d856619d3937/results/statistics_all.csv')
 old_stats_df = old_stats_df[full_stats_df.columns]

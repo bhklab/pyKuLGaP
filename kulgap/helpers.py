@@ -54,8 +54,8 @@ def calculate_AUC(variable, response):
 def kl_divergence(case, control):
     """
     Calcluates KL divergence between case and control
-    :param case: The treatment TreatmentCondition object
-    :param control: The control TreatmentCondition object
+    :param case: The treatment ExperimentalCondition object
+    :param control: The control ExperimentalCondition object
     :return: [float] The KL value
     """
 
@@ -80,7 +80,7 @@ def kl_divergence(case, control):
 def cross_kl_divergences(treatment_condition_list):
     """
     takes a list of categories and computes KL(variable,response) for all variable and response in the list
-    :param treatment_condition_list: A list of TreatmentCondition objects
+    :param treatment_condition_list: A list of ExperimentalCondition objects
     :return: The list of all KL(variable,response) as variable, response range over cat_list
     """
     kl_list = []

@@ -5,7 +5,6 @@ from collections import Counter
 
 # plotting dependencies
 import matplotlib.pyplot as plt
-import numpy as np
 import statsmodels.api as sm
 # GPy dependencies
 from GPy import plotting
@@ -14,9 +13,10 @@ from GPy.models import GPRegression
 from scipy.integrate import quad
 from scipy.stats import norm
 
-import pandas as pd
 import numpy as np
 from .helpers import calculate_AUC, compute_response_angle, relativize, centre
+from .plotting import create_measurement_dict
+import pandas as pd
 
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +29,20 @@ class TreatmentResponseExperiment:
     """
     This class contains all CancerModel objects for a given treatment response experiment.
 
+    Attributes:
+        - model_names: [list] The names of the `CancerModel` object contained within the object.
+        - cancer_models: [list] The list of `CancerModel` object contained within the object.
+            * Note: A `TreatmentResponseExperiment` is iterable and returns a tuple of the model name and model object
+                for each `CancerModel` in the object.
+        - summary_stats_df: [DataFrame] Table containing summary statistics computed for all `CancerModel`s in the
+            object. Computes the statistics if they don't exist already.
+
+    Methods:
+        - treatment_condition_names: [list] Returns a list of names for all unique `TreatmentConditon` within
+            the object.
+        - to_dict: [dict] Returns the object as a dictionary
+        - compute_all_statistics: [None] Computes all summary statistics and assigns them as a DataFrame to the
+            summary_stats_df attribute.
     """
 
     # -- Constructor
@@ -45,6 +59,7 @@ class TreatmentResponseExperiment:
         model_names = [model.name for model in cancer_model_list]
         self.__model_names = model_names
         self.__cancer_models = cancer_model_list
+        self.__summary_stats_df = None
 
     # -- Accessor methods
     @property
@@ -67,25 +82,49 @@ class TreatmentResponseExperiment:
             raise TypeError("An element in the list is not a `CancerModel` object!")
         self.__cancer_models = new_cancer_models
 
+    @property
+    def summary_stats_df(self):
+        if self.__summary_stats_df is None:
+            self.compute_all_statistics(fit_gps=True)
+        return self.__summary_stats_df
+
     # -- Implementing built-in methods
     def __repr__(self):
-        return f'Cancer Models: {self.model_names}\nTreatment Conditions: {self.all_treatment_conditions()}\n'
+        return f'Cancer Models: {self.model_names}\nTreatment Conditions: {self.treatment_condition_names()}\n'
 
     def __iter__(self):
         """Returns the iterator object when a `TreatmentResponseExperiment` is called for looping"""
         return TREIterator(TRE=self)
 
     # -- Class methods
-    def all_treatment_conditions(self):
+    def treatment_condition_names(self):
+        """
+        Return the names of all unique treatment conditions in the `TreatmentResponseExperiment` object
+        """
         treatment_conditions = [item for sublist in [model.treatment_conditions for model in self.cancer_models]
                                 for item in sublist]
-        return np.unique(np.array(treatment_conditions))
+        return list(np.unique(np.array(treatment_conditions)))
 
     def to_dict(self, recursive=False):
+        """
+        Convert a TreatmentResponseExperiment into a dictionary, where attributes become keys and their values become
+        items in the returned dictionary. If `recursive` is True, it will also convert all items into dictionaries such
+        that only JSONizable Python types are contained in the nested dictonary.
+        """
         if recursive:
             return dict(zip(self.model_names, [model.to_dict(recursive=True) for model in self.cancer_models]))
         else:
             return dict(zip(self.model_names, self.cancer_models))
+
+    def compute_all_statistics(self, null_kl_filename, fit_gps=True):
+        for _, cancer_model in self:
+            cancer_model.normalize_treatment_conditions()
+            if fit_gps:
+                cancer_model.fit_gps()
+            cancer_model.calculate_other_measures(fit_gp=fit_gps)
+        if not null_kl_filename:
+            null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
+        self.__summary_stats_df = pd.DataFrame.from_dict(create_measurement_dict(self, None)).transpose()
 
 
 # -- Helper classes for TreatmentResponseExperiment
@@ -128,7 +167,7 @@ class CancerModel:
 
         :param name: [string] Name of the patient or PHLC Donor ID
         :param source_id: [string] The source for this cancer model. (E.g., a patient id for PDX models, a specific
-            cell line for CCL models.
+            cell line for CCL models).
         :param variable_start: [float] A numeric representation of the starting date of the experiment in days.
         :param variable_end: of monitoring
         """
@@ -206,9 +245,9 @@ class CancerModel:
     @treatment_conditions.setter
     def treatment_conditions(self, new_treatment_conditions):
         if not isinstance(new_treatment_conditions, dict):
-            raise TypeError("Please pass a dict with `TreatmentCondition` objects as values!")
+            raise TypeError("Please pass a dict with `ExperimentalCondition` objects as values!")
         if any([not isinstance(val, TreatmentCondition) for val in new_treatment_conditions.values()]):
-            raise TypeError("An item in your updated treatment conditions in not a `TreatmentCondition` object.")
+            raise TypeError("An item in your updated treatment conditions in not a `ExperimentalCondition` object.")
         self.__treatment_conditions.update(new_treatment_conditions)
 
     ## ---- Implementing built in methods for `CancerModel` class
@@ -227,12 +266,12 @@ class CancerModel:
     ## ---- Class methods
     def add_treatment_condition(self, treatment_condition):
         """
-        Add a `TreatmentCondition` object to
+        Add a `ExperimentalCondition` object to
 
-        :param treatment_condition: a TreatmentCondition object
+        :param treatment_condition: a ExperimentalCondition object
         """
         if not isinstance(treatment_condition, TreatmentCondition):
-            raise TypeError("Only a `TreatmentCondition` object can be added with this method")
+            raise TypeError("Only a `ExperimentalCondition` object can be added with this method")
         if treatment_condition.name in list(self.treatment_conditions.keys()):
             raise TypeError(
                 f"A treatment condition named {treatment_condition.name} already exists in the `CancerModel`")
@@ -242,9 +281,9 @@ class CancerModel:
 
     def normalize_treatment_conditions(self):
         """
-        Normalizes data for each TreatmentCondition in the CancerModel object and calculates the start and end
+        Normalizes data for each ExperimentalCondition in the CancerModel object and calculates the start and end
         parameters.
-        Note: this requires the presence of a control!
+             - Note: this requires the presence of a control!
         :return: [None]
         """
         control = self.treatment_conditions.get("Control")
@@ -263,12 +302,12 @@ class CancerModel:
 
     def fit_all_gps(self):
         """
-        Fits GPs to all `TreatmentCondition`s in the `CancerModel` object
-        :return: [None]
+        Fits Gaussian Process models to all `ExperimentalCondition`s in the `CancerModel` object
+        :return: [None] Modifies the `CancerModel` object by reference.
         """
         control = self.treatment_conditions.get("Control")
         if not isinstance(control, TreatmentCondition):
-            raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
+            raise TypeError("The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
         control.fit_gaussian_processes()
         for condition_name, treatment_cond in self:
@@ -276,7 +315,7 @@ class CancerModel:
                 treatment_cond.fit_gaussian_processes(control=control)
                 treatment_cond.calculate_kl_divergence(control)
 
-    def compute_other_measures(self, fit_gp, report_name=None):
+    def compute_summary_statistics(self, fit_gp, report_name=None):
         """
         Computes the other measures (MRECIST, angle, AUC, TGI) for all non-Control `TreatmentConditions` of the
         `CancerModel`.
@@ -293,7 +332,7 @@ class CancerModel:
 
         control = self.treatment_conditions["Control"]
         if not isinstance(control, TreatmentCondition):
-            raise TypeError("The `control` variable is not a `TreatmentCondition`, please ensure a treatment condition"
+            raise TypeError("The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
         for condition_name, treatment_condition in self:
             if condition_name != "Control":
@@ -326,7 +365,7 @@ class CancerModel:
                                     response=
                                     centre(control.response[i,
                                            control.variable_treatment_start_index:
-                                           control.variable_treatment_end_index],
+                                           control.variable_treatment_end_index + 1],
                                            start),
                                     start=start)
                             treatment_condition.response_angle_rel_control[control.replicates[i]] = \
@@ -338,7 +377,7 @@ class CancerModel:
                                     response=
                                     relativize(control.response[i,
                                                control.variable_treatment_start_index:
-                                               control.variable_treatment_end_index],
+                                               control.variable_treatment_end_index + 1],
                                                start),
                                     start=start)
 
@@ -412,6 +451,11 @@ class CancerModel:
                 print("\n\n\n", file=f)
 
     def to_dict(self, recursive=False):
+        """
+        Convert a `CancerModel` object to a dictionary, with attribute names as keys for their respective values. If
+        `recrusive` is True, also converts all `TreatmentCondtion` objects in the CancerModel to dictionaries such
+        that only JSONizable Python types remain in the nested dictionary.
+        """
         return {
             'name': self.name,
             'source_id': self.source_id,
@@ -430,7 +474,7 @@ class CancerModel:
 class CancerModelIterator:
     """
     Iterator to allow looping over `CancerModel` objects. Returns a set tuples where the first item is the treatment
-    condition name and the second is the `TreatmentCondition` object.
+    condition name and the second is the `ExperimentalCondition` object.
     """
 
     def __init__(self, cancer_model):
@@ -447,11 +491,11 @@ class CancerModelIterator:
         return results
 
 
-## ---- TreatmentCondition Object
+## ---- ExperimentalCondition Object
 
 class TreatmentCondition:
     """
-    The `TreatmentCondition` class stores treatment response data for an experimental condition within a `CancerModel`.
+    The `ExperimentalCondition` class stores treatment response data for an experimental condition within a `CancerModel`.
     It stores all replicates for all variables of the experimental condition for a given cancer model system.
 
     For example, in CancerModel Derived Xenograph (PDX) experiments it would store the tumour size measurements at each
@@ -460,7 +504,7 @@ class TreatmentCondition:
     In cancer cell lines (CCLs) it would store all viability measurements for each dose level for all cultures derived
     from a single cancer cell line and treated with a specific compound.
 
-    Thus the `TreatmentCondition` class can be though of a storing data response data for a cancer model in two
+    Thus the `ExperimentalCondition` class can be though of a storing data response data for a cancer model in two
     dimensions: replicates (e.g., a specific mouse or culture) variable condition levels (e.g., a specific time or dose).
 
     Common experimental conditions:
@@ -472,8 +516,7 @@ class TreatmentCondition:
     """
 
     def __init__(self, name, source_id=None, variable=None, response=None, replicates=None,
-                 variable_treatment_start=None,
-                 is_control=False):
+                 variable_treatment_start=None, is_control=False):
         """
         Initialize a particular treatment condition within a cancer model. For example, exposure to a given compound
         in set of PDX models derived from a single patient.
@@ -482,14 +525,14 @@ class TreatmentCondition:
         :param source_id: [string] A unique identifier for the cancer model source. For PDX models this would be the
             name of id of the patient from which the models were derived. For CCLs this would be the strain from which
             all cell cultures were derived.
-        :param variable: [ndarray] The variable of the experimental condition. For example, the treatment exposure time
-            for each tumour size measurement or the dose variable for each cell viability measurement.
+        :param variable: [ndarray] The independent variable of the experimental condition. For example, the treatment
+            exposure time for each tumour size measurement or the dose variable for each cell viability measurement.
         :param response: [ndarray] The response metric for the experimental condition. E.g., the tumour size in a PDX
-            model after variable days of treatment exposure or the cell viability measurements in a CCL at a specific compound
-            dose.
-        :param replicates: [ndarray] The
+            model after variable days of treatment exposure or the cell viability measurements in a CCL at a specific
+            compound dose.
+        :param replicates: [ndarray] The indexes of replicate values in the response attribute.
         :param is_control: [bool] Whether or not the treatment condition is a control.
-        :return [None] Creates the TreatmentCondition object
+        :return [None] Creates the ExperimentalCondition object.
         """
 
         self.name = name
@@ -501,9 +544,6 @@ class TreatmentCondition:
         self.variable_start = self.variable[0][0]
         self.variable_treatment_start = variable_treatment_start if variable_treatment_start is not None else \
             self.variable_start
-
-        self.start = None
-        self.end = None
 
         self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
         self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
@@ -577,6 +617,10 @@ class TreatmentCondition:
         self.tgi = None
 
     def to_dict(self, json=False):
+        """
+        Convert a ExperimentalCondition object into a dictionary with attributes as keys for their associated values. If
+        `json` is True, all values will be coerced to JSONizable Python base types.
+        """
         # Helper to convert any NumPy types into base types
         def _if_numpy_to_base(object):
             if isinstance(object, np.ndarray):
@@ -595,11 +639,10 @@ class TreatmentCondition:
     ## TODO:: Can we implement this in the constructor?
     def find_variable_start_index(self):
         """
+        Returns the index in the array of the location of the treatment start value, + or - 1. For a PDX model, this
+        corresponds to the index of the day treatment was started.
 
-        Returns the index in the array of the location of the drug's
-        start day, + or - 1.
-
-        :return [int] The index:
+        :return [int] The index.
         """
         start = None
         start_found = False
@@ -621,7 +664,7 @@ class TreatmentCondition:
         self.response_norm = self.__normalize_treatment_start_variable_and_log_transform(self.response,
                                                                                          self.find_variable_start_index())
 
-    def __normalize_treatment_start_variable_and_log_transform(self, y, treatment_start_index):
+    def __normalize_treatment_start_variable_and_log_transform(self, response, treatment_start_index):
         """
         Normalize by dividing every response element-wise by the first day's median
         and then taking the log.
@@ -638,7 +681,7 @@ class TreatmentCondition:
         # print(response)
         #
         # print(np.log(np.asarray((response.T + 0.01) / response.T[int(treatment_start_index)], dtype=float).T) + 1)
-        return np.log(np.asarray((y.T + 0.01) / y.T[int(treatment_start_index)], dtype=float).T) + 1
+        return np.log(np.asarray((response.T + 0.01) / response.T[int(treatment_start_index)], dtype=float).T) + 1
 
     def create_full_data(self, control):
         """
@@ -662,7 +705,7 @@ class TreatmentCondition:
 
     def calculate_tgi(self, control):
         """
-        Calculates the Tumour Growth Index of a TreatmentCondition object
+        Calculates the Tumour Growth Index of a ExperimentalCondition object
         :param control [Boolean] whether the treatment_condition is from the control group:
         :return [None] Writes the calculated value into self.tgi
         """
@@ -745,7 +788,7 @@ class TreatmentCondition:
         Calculates the KL divergence between the GPs fit for both the
         batched controls and batched cases.
 
-        :param control: The corresponding control TreatmentCondition object
+        :param control: The corresponding control ExperimentalCondition object
         :return: The KL divergence
         """
 
@@ -839,7 +882,7 @@ class TreatmentCondition:
         """
         Builds the response angle dict.
 
-        :param control [TreatmentCondition] the corresponding control object
+        :param control [ExperimentalCondition] the corresponding control object
         :return [None] writes to the angle parameters 
         """
         start = self.find_variable_start_index()
@@ -939,7 +982,7 @@ class TreatmentCondition:
             # days_volume = zip(self.variable.ravel(), self.response[i])
 
             if start is None:
-                raise ValueError("The `start` attribute for this `TreatmentCondition` object is set to None, "
+                raise ValueError("The `start` attribute for this `ExperimentalCondition` object is set to None, "
                                  "please reset.")
             else:
                 initial_volume = self.response[i][start]
@@ -967,7 +1010,7 @@ class TreatmentCondition:
             start = self.find_variable_start_index()
 
             if start is None:
-                raise ValueError("The `start` attribute for this `TreatmentCondition` object is set to None, "
+                raise ValueError("The `start` attribute for this `ExperimentalCondition` object is set to None, "
                                  "please reset.")
             else:
                 initial_volume = self.response[i][start]
@@ -1002,7 +1045,7 @@ class TreatmentCondition:
 
         # TODO:: Instead of error, we could just call method to calculate mrecist, then give the user a warning?
         if self.mrecist is None:
-            raise ValueError("`TreatmentCondition` object mrecist attribute is none, please calculate mrecist first!")
+            raise ValueError("`ExperimentalCondition` object mrecist attribute is none, please calculate mrecist first!")
 
         self.mrecist_counts = Counter(mCR=0, mPR=0, mSD=0, mPD=0)
         for replicate in self.replicates:
@@ -1053,7 +1096,7 @@ class TreatmentCondition:
 
     def calculate_credible_intervals(self, control):
         """
-        :param control: control TreatmentCondition object
+        :param control: control ExperimentalCondition object
         :return:
         """
 
@@ -1112,7 +1155,7 @@ class TreatmentCondition:
 
     def compute_all_gp_derivatives(self, control):
         """
-        :param control [TreatmentCondition] The control `TreatmentCondition` for the current `CancerModel`
+        :param control [ExperimentalCondition] The control `ExperimentalCondition` for the current `CancerModel`
         :return: [None] Sets the `rates_list` attribute
         """
 
@@ -1132,7 +1175,7 @@ class TreatmentCondition:
         of the comparison with some statistics as well.
 
 
-        :param control: The control TreatmentCondition object
+        :param control: The control ExperimentalCondition object
         :param output_path: output filepath - if not specified, doesn't save
         :param show_kl_divergence: flag for displaying calculated kl_divergence
         :param show_legend: flag for displaying legend

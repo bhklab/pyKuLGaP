@@ -234,8 +234,8 @@ def dict_from_string(s):
 def pointwise_kl(case, control, t):
     """
     Calculates the point-wise KL divergence between case and control at time t
-    :param case: The treatment TreatmentCondition
-    :param controL: The control TreatmentCondition
+    :param case: The treatment ExperimentalCondition
+    :param controL: The control ExperimentalCondition
     :param t: The time point
     :return: [float] The KL value.
     """
@@ -258,8 +258,8 @@ def p_value(y, l2):
 def find_start_end(case, control):
     """
     Find the measurement start and end of a control, treatment pair.
-    :param case: The treatment TreatmentCondition
-    :param controL: The control TreatmentCondition
+    :param case: The treatment ExperimentalCondition
+    :param controL: The control ExperimentalCondition
     :return a [tuple]:
         - the start index point
         - the end index point
@@ -288,8 +288,8 @@ def logna(x):
 def plot_gp(case, control, savename):
     """
     Plots a GP fitted to a treatment and control pair.
-    :param case: The treatment TreatmentCondition
-    :param controL: The control TreatmentCondition
+    :param case: The treatment ExperimentalCondition
+    :param controL: The control ExperimentalCondition
     :param savename: name under which the plot will be saved.
     """
     start, end = find_start_end(case, control)
