@@ -7,8 +7,6 @@ setup(name='kulgap',
       author='Janosch Ortmann, Christopher Eeles, Benjamin Haibe-Kains',
       author_email='janosch.ortmann@gmail.com, christopher.eeles@uhnresearch.ca, benjamin.haibe.kains@utoronto.ca',
       license='MIT',
-      packages=['kulgap'],
-      package_dir={'kulgap': 'kulgap'},
-      package_data={'kulgap': 'data/*'},
+      packages=find_packages(),
       zip_safe=False
       )

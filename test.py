@@ -121,7 +121,7 @@ for model_name, CancerModel in all_patients:
 
 full_stats_df =pd.DataFrame.from_dict(create_measurement_dict(all_patients,None)).transpose()
 
-old_stats_df = pd.read_csv('../old_stats_df.csv')
+old_stats_df = pd.read_csv('https://raw.githubusercontent.com/bhklab/pyKuLGaP/8413a329ad64da4f8e1a2a8efd87d856619d3937/results/statistics_all.csv')
 old_stats_df = old_stats_df[full_stats_df.columns]
 
 i = 4

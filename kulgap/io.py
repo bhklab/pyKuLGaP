@@ -115,7 +115,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
         cancer_model.compute_other_measures(fit_gp=True)
 
     # TODO: Dynamically find path to data folder?
-    kl_null_filename = os.path.join("data", "kl_control_vs_control.csv")
+    kl_null_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
 
     # -- extract summary statistics and dump to json
     stats_json = pd.DataFrame.from_dict(create_measurement_dict(treatment_response_experiment, kl_null_filename)) \
