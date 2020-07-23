@@ -89,8 +89,8 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 stats_dict[key]['kl'] = cur_case.kl_divergence
                 stats_dict[key]['kl_p_value'] = cur_case.kl_p_value
                 stats_dict[key]['kl_p_cvsc'] = cur_case.kl_p_cvsc
-                stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_list)
-                stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_list_control)
+                stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_array)
+                stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_array_control)
 
                 stats_dict[key]['auc'] = dict_to_string(cur_case.auc)
                 stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)

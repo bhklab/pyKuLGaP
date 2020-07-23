@@ -121,7 +121,7 @@ class TreatmentResponseExperiment:
             cancer_model.normalize_treatment_conditions()
             if fit_gps:
                 cancer_model.fit_all_gps()
-            cancer_model.calculate_other_measures(fit_gp=fit_gps)
+            cancer_model.compute_summary_statistics(fit_gp=fit_gps)
         if not null_kl_filename:
             null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
         self.__summary_stats_df = pd.DataFrame.from_dict(create_measurement_dict(self, null_kl_filename)).transpose()
@@ -600,8 +600,8 @@ class TreatmentCondition:
         self.credible_intervals = []
         self.percent_credible_intervals = None
 
-        self.rates_list = []
-        self.rates_list_control = []
+        self.rates_array = np.array([])
+        self.rates_array_control = np.array([])
 
         # Full Data is all of the data of the treatments and control
         self.full_data = np.array([])
@@ -1157,16 +1157,16 @@ class TreatmentCondition:
     def compute_all_gp_derivatives(self, control):
         """
         :param control [ExperimentalCondition] The control `ExperimentalCondition` for the current `CancerModel`
-        :return: [None] Sets the `rates_list` attribute
+        :return: [None] Sets the `rates_array` attribute
         """
 
         logger.info("Calculating the GP derivatives for: " + self.name + ' and control')
         for var in self.variable:
-            self.rates_list.append(self.__gp_derivative(var, self.gp)[0])
+            np.append(self.rates_array, self.__gp_derivative(var, self.gp)[0])
         for var in control.variable:
-            self.rates_list_control.append(self.__gp_derivative(var, control.gp)[0])
-        self.rates_list = np.ravel(self.rates_list)
-        self.rates_list_control = np.ravel(self.rates_list_control)
+            np.append(self.rates_array_control, self.__gp_derivative(var, control.gp)[0])
+        self.rates_array = np.ravel(self.rates_array)
+        self.rates_array_control = np.ravel(self.rates_array_control)
         logger.info("Done calcluating GP derivatives for: " + self.name + ' and control')
 
     def plot_with_control(self, control=None, output_path=None, show_kl_divergence=True, show_legend=True,
@@ -1241,4 +1241,4 @@ class TreatmentCondition:
                            f"K-L P-Value: {self.kl_p_value}",
                            f"mRecist: {self.mrecist}",
                            f"Percent Credible Interval: {self.percent_credible_intervals}",
-                           f"Rates List: {self.rates_list}"]))
+                           f"Rates List: {self.rates_array}"]))
