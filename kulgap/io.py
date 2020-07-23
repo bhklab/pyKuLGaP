@@ -4,8 +4,6 @@ import re
 import io
 
 from .classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition
-## TODO:: Why does this function live in plotting?
-from .plotting import create_measurement_dict
 
 def read_pdx_data(file_path):
     """
@@ -116,14 +114,21 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     return treatment_response_experiment
 
 
-def calculate_summary_stats_df(treatment_response_experiment):
+def byte_stream_to_stats_json(csv_byte_stream, orient='records'):
+    """
+    Accepts a byte stream of a .csv file where the first column is Time, followed by N columns named Control, then a
+    blank column, then N columns named Treatment. Control contains tumour volume (mm^3) values for each control PDX
+    mouse model, Treatment contains the same for each PDX mouse model given a specific treatment.
 
-    kl_null_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
-
-    # -- extract summary statistics and dump to json
-    stats_json = pd.DataFrame.from_dict(create_measurement_dict(treatment_response_experiment, kl_null_filename)) \
-        .transpose().to_json(orient='records')
-    return stats_json
+    :param csv_byte_stream: [bytes] A byte stream containing the string representation of a .csv file. The format of
+        this .csv file is specified above.
+    :param orient: [string] A JSON orientation passed to pandas.DataFrame.to_json as the orient argument. Defaults to
+        'records', see Pandas documentation for other options.
+    :return [string] A JSON string containing the summary_stats_df data from a TreatmentResponseExperiment built from
+        the .csv byte stream.
+    """
+    treatment_response_experiment = read_pdx_from_byte_stream(csv_byte_stream)
+    return treatment_response_experiment.summary_stats_df.to_json(orient=orient)
 
 
 ## -- Local helper methods
