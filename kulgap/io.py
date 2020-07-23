@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
-import json
+import os
 import re
+import io
 
 from .classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition
 ## TODO:: Why does this function live in plotting?
@@ -51,28 +52,43 @@ def read_pdx_data(file_path):
     pdx_experiment = TreatmentResponseExperiment(pdx_model_list)
     return pdx_experiment
 
-def read_pdx_from_byte_stream(file_buffer):
-    df = pd.read_csv(file_buffer)
+def read_pdx_from_byte_stream(csv_byte_stream):
+    """
+    Read in a .csv file from the KuLGaP web application as a byte stream and parses that .csv into a
+    `TreatmentResponseExperiment` object. Then computes summary statistics, builds a DataFrame and JSONizes
+    the DataFrame, returning the JSON string.
 
-    # -- build the TreatmentCondition objects from the df
+    :param csv_byte_stream [bytes] A byte stream passed from the web application containing the .csv data for
+        a PDX experiment.
+    :return [string] A JSON string containing the summary statistics for the PDX experiment.
+    """
+    stream = io.StringIO(csv_byte_stream.decode('utf-8'))
+    df = pd.read_csv(stream)
+
+    # -- parse the control and treatment columns to NumPy arrays
     control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     variable = df.Time.to_numpy()
     treatment_response = df.iloc[:, [bool(re.match('Treatment.*', col)) for col in df.columns]].to_numpy()
+
+    if control_response.shape != treatment_response.shape:
+        raise ValueError("Oh no! We can't seem to parse your control and treatment columns. Please ensure the correct"
+                         "formatting has been used for your .csv file.")
 
     # -- subset to death of first mouse
     # Determine index of first mouse death to remove all NaNs before fitting the model
     first_death_idx = min(min(np.sum(~np.isnan(control_response), axis=0)),
                           min(np.sum(~np.isnan(treatment_response), axis=0)))
 
+    # Subset the relevant data to first_death_idx
     control_response = control_response[0:first_death_idx, :]
     treatment_response = treatment_response[0:first_death_idx, :]
     variable = variable[0:first_death_idx]
 
+    # -- build the TreatmentCondition objects from the df
     control = TreatmentCondition('Control', source_id='from_webapp',
                                  variable=variable, response=control_response,
                                  replicates=list(range(control_response.shape[1])),
-                                 variable_treatment_start=min(df.variable), is_control=True)
-
+                                 variable_treatment_start=min(variable), is_control=True)
 
     treatment = TreatmentCondition('Treatment', source_id='from_webapp',
                                    replicates=list(range(treatment_response.shape[1])),
@@ -92,32 +108,19 @@ def read_pdx_from_byte_stream(file_buffer):
     # -- build the TreatmentResponseExperiment object from the CancerModel
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
 
-    # -- fit gaussian process models and calculate statistics
+    # -- fit gaussian process model and calculate statistics
     for model_name, cancer_model in treatment_response_experiment:
+        cancer_model.normalize_treatment_conditions()
         cancer_model.fit_all_gps()
-        cancer_model.compute_other_statistcs(fit_gps=True)
+        cancer_model.compute_other_measures(fit_gp=True)
 
-    ## TODO:: Determine if I need to pass back the treatmetn_response_experiment or just the summary stats
-    #patient_json = json.dumps(treatment_response_experiment.to_dict(recursive=True))
+    # TODO: Dynamically find path to data folder?
+    kl_null_filename = os.path.join("data", "kl_control_vs_control.csv")
 
     # -- extract summary statistics and dump to json
-    stats_json = pd.DataFrame.from_dict(
-        create_measurement_dict(treatment_response_experiment.cancer_models)
-    ).transpose().to_json()
-
-    return(stats_json)
-
-
-
-
-
-## TODO:: Build experiment object using pandas groupby statements
-def read_to_treat_resp_exp(file_path):
-     df = pd.read_csv(file_path, index_col=0)
-     def _group_by_category(df):
-         return dict(zip(df.category.unique(), [group for _, group in df.groupby(['category'])]))
-     cancer_models = dict(zip(df.patient.unique(), df.groupby(['patient']).apply(_group_by_category)))
-
+    stats_json = pd.DataFrame.from_dict(create_measurement_dict(treatment_response_experiment, kl_null_filename)) \
+        .transpose().to_json(orient='table')
+    return stats_json
 
 
 ## -- Local helper methods
