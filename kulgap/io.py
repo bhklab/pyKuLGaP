@@ -119,7 +119,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
 
     # -- extract summary statistics and dump to json
     stats_json = pd.DataFrame.from_dict(create_measurement_dict(treatment_response_experiment, kl_null_filename)) \
-        .transpose().to_json(orient='table')
+        .transpose().to_json(orient='records')
     return stats_json
 
 

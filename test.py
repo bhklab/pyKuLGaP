@@ -127,52 +127,52 @@ old_stats_df = old_stats_df[full_stats_df.columns]
 i = 4
 pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
-#old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]
-
-#TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
-classifiers_df = get_classification_df(full_stats_df)
-
-
-# =============================================================================
-#     Finally we save all our files to the disk and create the figures:
-# =============================================================================
-
-full_stats_df.to_csv(stats_outname)
-classifiers_df.to_csv(classifiers_outname)
-
-
-# Figure 2: heatmaps and scatterplot
-create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname)
-create_and_plot_FDR(classifiers_df, conservative_outfigname, conservative_outname)
-plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
-
-
-
-
-create_and_save_KT(classifiers_df, KT_outname)
-
-plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, kl_null_filename)
-
-
+# #old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]
+#
+# #TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
+# classifiers_df = get_classification_df(full_stats_df)
+#
+#
+# # =============================================================================
+# #     Finally we save all our files to the disk and create the figures:
+# # =============================================================================
+#
+# full_stats_df.to_csv(stats_outname)
+# classifiers_df.to_csv(classifiers_outname)
+#
+#
+# # Figure 2: heatmaps and scatterplot
+# create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname)
+# create_and_plot_FDR(classifiers_df, conservative_outfigname, conservative_outname)
+# plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
+#
+#
+#
+#
+# create_and_save_KT(classifiers_df, KT_outname)
+#
+# plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, kl_null_filename)
 
 
-#quick verification:
 
-statistics_old=pd.read_csv("results/test-run-old/statistics_all.csv",index_col=0)
 
-classifiers_old = pd.read_csv("results/test-run-old/classifiers.csv",index_col=0).rename(columns = {"mRECIST-Novartis":"mRECIST"})
-
-if np.all(full_stats_df == statistics_old):
-    print("OK!")
-else:
-    
-    for i,col in enumerate(full_stats_df.columns):
-        if full_stats_df.iloc[0,i]!=statistics_old.iloc[0,i]:
-            print(col)
-            if np.abs(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])>0.00001:
-                print(col)
-                print(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])
-    else:
-        print("Only rounding errors")
-            
-
+# #quick verification:
+#
+# statistics_old=pd.read_csv("results/test-run-old/statistics_all.csv",index_col=0)
+#
+# classifiers_old = pd.read_csv("results/test-run-old/classifiers.csv",index_col=0).rename(columns = {"mRECIST-Novartis":"mRECIST"})
+#
+# if np.all(full_stats_df == statistics_old):
+#     print("OK!")
+# else:
+#
+#     for i,col in enumerate(full_stats_df.columns):
+#         if full_stats_df.iloc[0,i]!=statistics_old.iloc[0,i]:
+#             print(col)
+#             if np.abs(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])>0.00001:
+#                 print(col)
+#                 print(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])
+#     else:
+#         print("Only rounding errors")
+#
+#
