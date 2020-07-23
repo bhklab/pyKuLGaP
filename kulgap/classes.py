@@ -120,7 +120,7 @@ class TreatmentResponseExperiment:
         for _, cancer_model in self:
             cancer_model.normalize_treatment_conditions()
             if fit_gps:
-                cancer_model.fit_gps()
+                cancer_model.fit_all_gps()
             cancer_model.calculate_other_measures(fit_gp=fit_gps)
         if not null_kl_filename:
             null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
@@ -714,11 +714,12 @@ class TreatmentCondition:
             # calculates TGI between yt (Treatment) and yc (Control) during epoch i, to j
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
-        self.tgi = TGI(self.response_norm.mean(axis=0)[self.variable_start_index:
-                                                       (self.variable_end_index + 1)],
-                       control.response_norm.mean(axis=0)[self.variable_start_index:
-                                                          (self.variable_end_index + 1)],
-                       0, self.variable_end_index - self.variable_start_index)
+        start = max(self.find_variable_start_index(), control.variable_treatment_start_index)
+        end = min(self.variable_treatment_end_index, control.variable_treatment_end_index)
+
+        self.tgi = TGI(self.response_norm.mean(axis=0)[start:(end + 1)],
+                       control.response_norm.mean(axis=0)[start:(end + 1)],
+                       0, start - end)
 
     def fit_gaussian_processes(self, control=None, num_restarts=7):
         """
