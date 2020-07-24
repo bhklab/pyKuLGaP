@@ -6,20 +6,13 @@ Created on Tue Jul 14 09:07:30 2020
 @author: ortmann_j
 """
 
+from pykulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
+    create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
 
+from pykulgap.io import read_pdx_data
+from pykulgap.classes import ExperimentalCondition
 
-from collections import defaultdict
-
-import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-
-from kulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
-    plot_experimental_condition, plot_histogram, create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
-        create_measurement_dict, create_measurement_df
-
-from kulgap.io import read_pdx_data
-from kulgap.classes import *
 
 results_folder = "results"
 data_folder = "data/"
@@ -105,6 +98,12 @@ fit_gp= True
 
 
 all_patients = read_pdx_data(anon_filename)
+
+all_patients[0]
+
+
+
+
 tc = all_patients.cancer_models[0].treatment_conditions.get("C1")
 cc = all_patients.cancer_models[0].treatment_conditions.get("Control")
 

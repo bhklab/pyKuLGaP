@@ -492,7 +492,7 @@ def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     """
     responses = stats_df[["kl"]].copy()
 
-    responses["kulgap"] = stats_df.kl_p_cvsc.apply(tsmaller, v2=p_val, y=1, n=-1, na=0)
+    responses["pykulgap"] = stats_df.kl_p_cvsc.apply(tsmaller, v2=p_val, y=1, n=-1, na=0)
     responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(tsmaller, v2=0.5, y=1, n=-1, na=0)
 
     responses["Angle"] = stats_df.apply(
@@ -519,13 +519,13 @@ def get_classification_dict_with_patients(all_cancer_models, stats_df, p_val, al
 
     :return: a dictionary of lists of calls (values) for each classifier (keys)
     """
-    predict = {"kulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
+    predict = {"pykulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
                "TGI": []}
     for model_name, cancer_model in all_cancer_models:
         for condition_name, treatment_cond in cancer_model.treatment_conditions:
             if condition_name != "Control":
                 name = str(cancer_model.name) + "*" + str(condition_name)
-                predict["kulgap"].append(tsmaller(p_value(treatment_cond.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0))
+                predict["pykulgap"].append(tsmaller(p_value(treatment_cond.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0))
                 predict["mRECIST_Novartis"].append(tsmaller(stats_df.loc[name, "perc_mPD"], 0.5, y=1, n=-1, na=0))
                 predict["mRECIST_ours"].append(
                     tsmaller(plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5, y=1, n=-1,
@@ -548,7 +548,7 @@ def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements
     """
     agreements = create_agreements(classifiers_df)
     agreements.to_csv(agreements_outname)
-    paper_list = ["kulgap", "TGI", "mRECIST", "AUC", "Angle"]
+    paper_list = ["pykulgap", "TGI", "mRECIST", "AUC", "Angle"]
     ag2 = agreements[paper_list].reindex(paper_list)
     print(ag2)
     plt.figure()
@@ -567,7 +567,7 @@ def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
     """
     FDR = create_FDR(classifiers_df)
     FDR.to_csv(FDR_outname)
-    paper_list = ["kulgap", "TGI", "mRECIST", "AUC", "Angle"]
+    paper_list = ["pykulgap", "TGI", "mRECIST", "AUC", "Angle"]
     FDR = FDR[paper_list].reindex(paper_list)
     plt.figure()
     sns.heatmap(FDR, cmap="coolwarm", square=True, annot=FDR,
@@ -643,7 +643,7 @@ def create_scatterplot(stats_df, classifiers_df, savename):
 
     df = stats_df[["kl"]]
     df.loc[:, "kl_p"] = stats_df.kl_p_cvsc
-    df.loc[:, "Ys"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
+    df.loc[:, "Ys"] = classifiers_df.drop("pykulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
 
     plt.figure()
     plt.ylim(0, 5)
@@ -670,7 +670,7 @@ def plot_histograms_2c(stats_df, classifiers_df, savename):
     """
     data = stats_df[["kl"]].copy()
     data.loc[:, "klval"] = stats_df.kl.apply(logna)
-    data.loc[:, "count"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
+    data.loc[:, "count"] = classifiers_df.drop("pykulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
 
     ordering = list(data['count'].value_counts().index)
     ordering.sort(reverse=True)

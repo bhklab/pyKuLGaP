@@ -428,7 +428,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
 
     classifiers_df = classifiers_df_ours.append(classifiers_df_crown)
 
-    classifiers_df.drop(["mRECIST-ours", "kulgap-prev"], axis=1, inplace=True)
+    classifiers_df.drop(["mRECIST-ours", "pykulgap-prev"], axis=1, inplace=True)
 
     # =============================================================================
     #     Finally we save all our files to the disk and create the figures:

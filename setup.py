@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-setup(name='kulgap',
+setup(name='pykulgap',
       version='0.0.1',
       description="Functions for statistical analysis of treatment response curves in patient derived xenograph (PDX) models of cancer.",
       url='https://github.com/bhklab/pyKuLGaP/tree/pypi',

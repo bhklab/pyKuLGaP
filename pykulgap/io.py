@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import io
 
-from .classes import TreatmentResponseExperiment, CancerModel, ExperimentalCondition
+from pykulgap.classes import TreatmentResponseExperiment, CancerModel, ExperimentalCondition
 
 
 def read_pdx_data(file_path):
