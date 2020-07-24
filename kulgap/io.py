@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import io
 
-from .classes import TreatmentResponseExperiment, CancerModel, TreatmentCondition
+from .classes import TreatmentResponseExperiment, CancerModel, ExperimentalCondition
 
 
 def read_pdx_data(file_path):
@@ -35,11 +35,11 @@ def read_pdx_data(file_path):
                 df_day = df_cat[df_cat.day == day]
                 response_list.append(df_day.volume)
             response_array = np.array(response_list)
-            new_cond = TreatmentCondition(cname, source_id=pname, variable=variable_array,
-                                          response=response_array,
-                                          replicates=range(response_array.shape[1]),
-                                          variable_treatment_start=df_cat.drug_start_day.iloc[0],
-                                          is_control=df_cat.control.iloc[0] == 1)
+            new_cond = ExperimentalCondition(cname, source_id=pname, variable=variable_array,
+                                             response=response_array,
+                                             replicates=range(response_array.shape[1]),
+                                             variable_treatment_start=df_cat.drug_start_day.iloc[0],
+                                             is_control=df_cat.control.iloc[0] == 1)
             new_cond.variable_treatment_start_index = df_cat.measurement_start.iloc[0]
             new_cond.variable_treatment_end_index = df_cat.measurement_end.iloc[0]
             new_pdx_model.add_treatment_condition(new_cond)
@@ -84,15 +84,15 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     variable = variable[0:first_death_idx]
 
     # -- build the ExperimentalCondition objects from the df
-    control = TreatmentCondition('Control', source_id='from_webapp',
-                                 variable=variable, response=control_response,
-                                 replicates=list(range(control_response.shape[1])),
-                                 variable_treatment_start=min(variable), is_control=True)
+    control = ExperimentalCondition('Control', source_id='from_webapp',
+                                    variable=variable, response=control_response,
+                                    replicates=list(range(control_response.shape[1])),
+                                    variable_treatment_start=min(variable), is_control=True)
 
-    treatment = TreatmentCondition('Treatment', source_id='from_webapp',
-                                   replicates=list(range(treatment_response.shape[1])),
-                                   variable=variable, response=treatment_response,
-                                   variable_treatment_start=min(variable), is_control=False)
+    treatment = ExperimentalCondition('Treatment', source_id='from_webapp',
+                                      replicates=list(range(treatment_response.shape[1])),
+                                      variable=variable, response=treatment_response,
+                                      variable_treatment_start=min(variable), is_control=False)
 
     # -- build the CancerModel object from the TreatmentConditions
     treatment_condition_dict = {'Control': control, 'Treatment': treatment}

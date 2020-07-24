@@ -15,7 +15,7 @@ import pandas as pd
 import statsmodels.api as sm
 
 from kulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
-    plot_category, plot_histogram, create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
+    plot_experimental_condition, plot_histogram, create_and_plot_FDR, create_and_save_KT, plot_histograms_2c,\
         create_measurement_dict, create_measurement_df
 
 from kulgap.io import read_pdx_data
@@ -124,31 +124,30 @@ old_stats_df = old_stats_df[full_stats_df.columns]
 i = 0
 pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
-# #old_stats_df.iloc[1, :] == full_stats_df.iloc[1, :]
-#
-# #TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
-# classifiers_df = get_classification_df(full_stats_df)
-#
-#
-# # =============================================================================
-# #     Finally we save all our files to the disk and create the figures:
-# # =============================================================================
-#
-# full_stats_df.to_csv(stats_outname)
-# classifiers_df.to_csv(classifiers_outname)
-#
-#
-# # Figure 2: heatmaps and scatterplot
-# create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname)
-# create_and_plot_FDR(classifiers_df, conservative_outfigname, conservative_outname)
-# plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
-#
-#
-#
-#
-# create_and_save_KT(classifiers_df, KT_outname)
-#
-# plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, kl_null_filename)
+
+## TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
+classifiers_df = get_classification_df(full_stats_df)
+
+
+# =============================================================================
+#     Finally we save all our files to the disk and create the figures:
+# =============================================================================
+
+full_stats_df.to_csv(stats_outname)
+classifiers_df.to_csv(classifiers_outname)
+
+
+# Figure 2: heatmaps and scatterplot
+create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements_outname)
+create_and_plot_FDR(classifiers_df, conservative_outfigname, conservative_outname)
+plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
+
+
+
+
+create_and_save_KT(classifiers_df, KT_outname)
+
+plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, kl_null_filename)
 
 
 

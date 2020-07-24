@@ -313,7 +313,7 @@ def plot_gp(case, control, savename):
     plt.savefig(savename)
 
 
-def plot_category(case, control, means=None, savename="figure.pdf", normalised=True):
+def plot_experimental_condition(case, control, means=None, savename="figure.pdf", normalised=True):
     """
     Fully plot a category
     :param case: the category to be plotted. Not allowed to be None
@@ -557,25 +557,6 @@ def create_and_plot_agreements(classifiers_df, agreements_outfigname, agreements
     plt.savefig(agreements_outfigname)
 
 
-# TODO: this function to be removed
-# def create_and_plot_conservative(classifiers_df, conservative_outfigname, conservative_outname):
-#     """
-
-#     :param classifiers_df:
-#     :param conservative_outfigname:
-#     :param conservative_outname:
-#     """
-#     conservative = create_conservative(classifiers_df)
-#     conservative.to_csv(conservative_outname)
-#     paper_list = ["kulgap", "TGI", "mRECIST", "AUC", "Angle"]
-#     con2 = conservative[paper_list].reindex(paper_list)
-#     plt.figure()
-#     sns.heatmap(con2, cmap="coolwarm", square=True, annot=con2,
-#                 cbar=False, linewidths=.3, linecolor="k", vmin=-.8, vmax=.8, center=-0.1)
-#     # sns.heatmap(conservative, square=True,annot=conservative.round(2),cmap="coolwarm",cbar=False)
-#     plt.savefig(conservative_outfigname)
-
-
 def create_and_plot_FDR(classifiers_df, FDR_outfigname, FDR_outname):
     """
     Creates the false discovery matrix and then plots it
@@ -686,7 +667,7 @@ def plot_histograms_2c(stats_df, classifiers_df, savename):
     :param classifiers_df: [DataFrame] The binary values (1/0) of the measures
     :param savename: The name under which the figure is saved.
     """
-    data = stats_df[["kl"]]
+    data = stats_df[["kl"]].copy()
     data.loc[:, "klval"] = stats_df.kl.apply(logna)
     data.loc[:, "count"] = classifiers_df.drop("kulgap", axis=1).apply(lambda row: row[row == 1].count(), axis=1)
 

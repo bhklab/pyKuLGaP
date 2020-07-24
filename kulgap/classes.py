@@ -246,7 +246,7 @@ class CancerModel:
     def treatment_conditions(self, new_treatment_conditions):
         if not isinstance(new_treatment_conditions, dict):
             raise TypeError("Please pass a dict with `ExperimentalCondition` objects as values!")
-        if any([not isinstance(val, TreatmentCondition) for val in new_treatment_conditions.values()]):
+        if any([not isinstance(val, ExperimentalCondition) for val in new_treatment_conditions.values()]):
             raise TypeError("An item in your updated treatment conditions in not a `ExperimentalCondition` object.")
         self.__treatment_conditions.update(new_treatment_conditions)
 
@@ -270,7 +270,7 @@ class CancerModel:
 
         :param treatment_condition: a ExperimentalCondition object
         """
-        if not isinstance(treatment_condition, TreatmentCondition):
+        if not isinstance(treatment_condition, ExperimentalCondition):
             raise TypeError("Only a `ExperimentalCondition` object can be added with this method")
         if treatment_condition.name in list(self.treatment_conditions.keys()):
             raise TypeError(
@@ -287,7 +287,7 @@ class CancerModel:
         :return: [None]
         """
         control = self.treatment_conditions.get("Control")
-        if not isinstance(control, TreatmentCondition):
+        if not isinstance(control, ExperimentalCondition):
             raise TypeError("The `control` variable is not a `TreatmentConditon`, please ensure a treatment condition"
                             "named 'Control' exists in this object before trying to normalize.")
         for treatment_condition_name, treatment_condition in self:
@@ -306,7 +306,7 @@ class CancerModel:
         :return: [None] Modifies the `CancerModel` object by reference.
         """
         control = self.treatment_conditions.get("Control")
-        if not isinstance(control, TreatmentCondition):
+        if not isinstance(control, ExperimentalCondition):
             raise TypeError("The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
         control.fit_gaussian_processes()
@@ -331,7 +331,7 @@ class CancerModel:
         failed_tgi = []
 
         control = self.treatment_conditions["Control"]
-        if not isinstance(control, TreatmentCondition):
+        if not isinstance(control, ExperimentalCondition):
             raise TypeError("The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
                             "named 'Control' exists in this object.")
         for condition_name, treatment_condition in self:
@@ -493,7 +493,7 @@ class CancerModelIterator:
 
 ## ---- ExperimentalCondition Object
 
-class TreatmentCondition:
+class ExperimentalCondition:
     """
     The `ExperimentalCondition` class stores treatment response data for an experimental condition within a `CancerModel`.
     It stores all replicates for all variables of the experimental condition for a given cancer model system.
@@ -548,6 +548,7 @@ class TreatmentCondition:
         self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
         self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
 
+        # Assume treatment start is the same as the start of the independent variable, unless the user assigne
         self.variable_treatment_start_index = self.variable_start_index
         self.variable_treatment_end_index = self.variable_end_index
 

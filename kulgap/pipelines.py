@@ -6,7 +6,7 @@ import pandas as pd
 import statsmodels.api as sm
 
 from .plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
-    plot_category, plot_gp, plot_histogram, \
+    plot_experimental_condition, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
 from .helpers import get_all_treatment_conditions, calculate_AUC, calculate_null_kl, dict_to_string, \
     relativize, centre, compute_response_angle
@@ -443,9 +443,9 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
     control_fig1 = all_patients[53].categories["Control"]
 
     ## Fig 1a: 
-    plot_category(case_fig1, control_fig1, means=None, savename=fig1a_figname, normalised=False)
+    plot_experimental_condition(case_fig1, control_fig1, means=None, savename=fig1a_figname, normalised=False)
     ## Fig 1b:
-    plot_category(case_fig1, control_fig1, means=None, savename=fig1b_figname)
+    plot_experimental_condition(case_fig1, control_fig1, means=None, savename=fig1b_figname)
     ## Fig 1c:
     plot_gp(case_fig1, control_fig1, savename=fig1c_figname)
     ## Fig 1d:
@@ -458,55 +458,55 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
     plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
 
     # Figures 3 - 5: individual plots    
-    #    plot_category(case,control,means=None)
+    #    plot_experimental_condition(case,control,means=None)
 
     ## Figure 3:
     case_fig3 = all_patients[11].categories["C1"]
     control_fig3 = all_patients[11].categories["Control"]
-    plot_category(case_fig3, control_fig3, means=None, savename=fig3a_figname)
-    plot_category(case_fig3, control_fig3, means="only", savename=fig3b_figname)
+    plot_experimental_condition(case_fig3, control_fig3, means=None, savename=fig3a_figname)
+    plot_experimental_condition(case_fig3, control_fig3, means="only", savename=fig3b_figname)
 
     ## Figure 4:
     case_fig4ab = all_patients[40].categories["C1"]
     control_fig4ab = all_patients[40].categories["Control"]
-    plot_category(case_fig4ab, control_fig4ab, means=None, savename=fig4a_figname)
-    plot_category(case_fig4ab, control_fig4ab, means="only", savename=fig4b_figname)
+    plot_experimental_condition(case_fig4ab, control_fig4ab, means=None, savename=fig4a_figname)
+    plot_experimental_condition(case_fig4ab, control_fig4ab, means="only", savename=fig4b_figname)
 
     case_fig4cd = all_patients[34].categories["C2"]
     control_fig4cd = all_patients[34].categories["Control"]
-    plot_category(case_fig4cd, control_fig4cd, means=None, savename=fig4c_figname)
-    plot_category(case_fig4cd, control_fig4cd, means="only", savename=fig4d_figname)
+    plot_experimental_condition(case_fig4cd, control_fig4cd, means=None, savename=fig4c_figname)
+    plot_experimental_condition(case_fig4cd, control_fig4cd, means="only", savename=fig4d_figname)
 
     ## Figure 5:
     case_fig5ab = all_patients[48].categories["C1"]
     control_fig5ab = all_patients[48].categories["Control"]
-    plot_category(case_fig5ab, control_fig5ab, means=None, savename=fig5a_figname)
-    plot_category(case_fig5ab, control_fig5ab, means="only", savename=fig5b_figname)
+    plot_experimental_condition(case_fig5ab, control_fig5ab, means=None, savename=fig5a_figname)
+    plot_experimental_condition(case_fig5ab, control_fig5ab, means="only", savename=fig5b_figname)
 
     case_fig5cd = all_patients[5].categories["C1"]
     control_fig5cd = all_patients[5].categories["Control"]
-    plot_category(case_fig5cd, control_fig5cd, means=None, savename=fig5c_figname)
-    plot_category(case_fig5cd, control_fig5cd, means="only", savename=fig5d_figname)
+    plot_experimental_condition(case_fig5cd, control_fig5cd, means=None, savename=fig5c_figname)
+    plot_experimental_condition(case_fig5cd, control_fig5cd, means="only", savename=fig5d_figname)
 
     ## Supplementary Figure 1:
 
     case_fig1s = all_patients[28].categories["C1"]
 
-    plot_category(case_fig1s, None, means=None, savename=supfig1_figname)
+    plot_experimental_condition(case_fig1s, None, means=None, savename=supfig1_figname)
 
     ## Supplementary Figure 2:
 
     case_fig2s = all_patients[3].categories["C1"]
     control_fig2s = all_patients[3].categories["Control"]
-    plot_category(case_fig2s, control_fig2s, means=None, savename=supfig2a_figname)
-    plot_category(case_fig2s, control_fig2s, means="only", savename=supfig2b_figname)
+    plot_experimental_condition(case_fig2s, control_fig2s, means=None, savename=supfig2a_figname)
+    plot_experimental_condition(case_fig2s, control_fig2s, means="only", savename=supfig2b_figname)
 
     ## Supplementary Figure 3:    
 
     case_fig3s = all_patients[11].categories["C3"]
     control_fig3s = all_patients[11].categories["Control"]
-    plot_category(case_fig3s, control_fig3s, means=None, savename=supfig3a_figname)
-    plot_category(case_fig3s, control_fig3s, means="only", savename=supfig3b_figname)
+    plot_experimental_condition(case_fig3s, control_fig3s, means=None, savename=supfig3a_figname)
+    plot_experimental_condition(case_fig3s, control_fig3s, means="only", savename=supfig3b_figname)
 
     ## Supplementary Figure 4:    
 
@@ -517,15 +517,15 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
 
     case_fig5s = all_patients[60].categories["C3"]
     control_fig5s = all_patients[60].categories["Control"]
-    plot_category(case_fig5s, control_fig5s, means=None, savename=supfig5a_figname)
-    plot_category(case_fig5s, control_fig5s, means="only", savename=supfig5b_figname)
+    plot_experimental_condition(case_fig5s, control_fig5s, means=None, savename=supfig5a_figname)
+    plot_experimental_condition(case_fig5s, control_fig5s, means="only", savename=supfig5b_figname)
 
     ## Supplementary Figure 6:    
 
     case_fig6s = all_patients[2].categories["C1"]
     control_fig6s = all_patients[2].categories["Control"]
-    plot_category(case_fig6s, control_fig6s, means=None, savename=supfig6a_figname)
-    plot_category(case_fig6s, control_fig6s, means="only", savename=supfig6b_figname)
+    plot_experimental_condition(case_fig6s, control_fig6s, means=None, savename=supfig6a_figname)
+    plot_experimental_condition(case_fig6s, control_fig6s, means="only", savename=supfig6b_figname)
 
     create_and_save_KT(classifiers_df, KT_outname)
 
