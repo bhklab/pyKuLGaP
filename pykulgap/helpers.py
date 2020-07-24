@@ -17,22 +17,22 @@ def p_value(l1, l2):
     return pval_list
 
 
-def get_all_treatment_conditions(treatment_response_experiment):
+def get_all_experimental_conditions(treatment_response_experiment):
     """
     Takes a list of patients and returns a dictionary of all categories in the list of patients,
 
     :param treatment_response_experiment: [TreatmentResponseExperiment] A container holding the set of
         `CancerModel` objects associated with a treatment response experiment.
-    :return: [dict] A dictionary of the form {name: treatment_condition}
+    :return: [dict] A dictionary of the form {name: experimental_condition}
     """
-    treatment_condition_dict = {}
+    experimental_condition_dict = {}
     for _, cancer_model in treatment_response_experiment:
-        control = cancer_model.treatment_conditions.get("Control")
-        for condition_name, treatment_condition in cancer_model.treatment_conditions:
+        control = cancer_model.experimental_conditions.get("Control")
+        for condition_name, experimental_condition in cancer_model.experimental_conditions:
             if condition_name != "Control":
-                treatment_condition_dict[str(cancer_model.name) + "-" + str(condition_name)] = \
-                    {"case": treatment_condition, "control": control}
-    return treatment_condition_dict
+                experimental_condition_dict[str(cancer_model.name) + "-" + str(condition_name)] = \
+                    {"case": experimental_condition, "control": control}
+    return experimental_condition_dict
 
 
 def calculate_AUC(variable, response):
@@ -77,19 +77,19 @@ def kl_divergence(case, control):
     return kl_divergence
 
 
-def cross_kl_divergences(treatment_condition_list):
+def cross_kl_divergences(experimental_condition_list):
     """
     takes a list of categories and computes KL(variable,response) for all variable and response in the list
-    :param treatment_condition_list: A list of ExperimentalCondition objects
+    :param experimental_condition_list: A list of ExperimentalCondition objects
     :return: The list of all KL(variable,response) as variable, response range over cat_list
     """
     kl_list = []
-    cl = len(treatment_condition_list)
+    cl = len(experimental_condition_list)
 
     for i in range(cl):
         print(f"done {i+1} out of {cl}")
         for j in range(i):
-            new_kl = kl_divergence(treatment_condition_list[i], treatment_condition_list[j])
+            new_kl = kl_divergence(experimental_condition_list[i], experimental_condition_list[j])
             if (new_kl is not None) and (str(new_kl) != "nan") and str(new_kl) != "inf":
                 kl_list.append(new_kl)
     return kl_list
@@ -105,19 +105,19 @@ def cv_smoothing(list_to_be_smoothed):
     return sm.nonparametric.KDEMultivariate(data=list_to_be_smoothed, var_type="c", bw="cv_ml")
 
 
-def calculate_null_kl(treatment_condition_list=None, filename=None):
+def calculate_null_kl(experimental_condition_list=None, filename=None):
     """
     Calculates the smoothed null KL distribution. One of the two parameters must be non-null
-    :param treatment_condition_list: [list] The list of treatment condition from which the null kl is to be calculated.
+    :param experimental_condition_list: [list] The list of treatment condition from which the null kl is to be calculated.
     :param filename: If None, calculate from category_list. Else read in from file_path
     :return: [list] the list of values and the smoothed object
     """
-    if filename is None and treatment_condition_list is not None:
-        null_kl_data = cross_kl_divergences(treatment_condition_list)
-    elif filename is not None and treatment_condition_list is None:
+    if filename is None and experimental_condition_list is not None:
+        null_kl_data = cross_kl_divergences(experimental_condition_list)
+    elif filename is not None and experimental_condition_list is None:
         null_kl_data = list(pd.read_csv(filename, header=None)[0])
     else:
-        raise ValueError("Only one of `filename` or `treatment_condition_list` can be passed as a parameter!")
+        raise ValueError("Only one of `filename` or `experimental_condition_list` can be passed as a parameter!")
     if len(null_kl_data) > 1:
         smoothed_null_kl = cv_smoothing(null_kl_data)
     else:

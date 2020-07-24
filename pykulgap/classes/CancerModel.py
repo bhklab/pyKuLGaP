@@ -10,7 +10,7 @@ class CancerModel:
     """
 
     def __init__(self, name, source_id=None, tumour_type=None, variable_start=None, variable_treatment_start=None,
-                 variable_end=None, treatment_condition_dict={}, model_type='PDX'):
+                 variable_end=None, experimental_condition_dict={}, model_type='PDX'):
         """
         Initialize attributes.
 
@@ -28,7 +28,30 @@ class CancerModel:
         self.__variable_end = variable_end
         self.__variable_treatment_start = variable_treatment_start
         self.__model_type = model_type
-        self.__treatment_conditions = treatment_condition_dict
+        self.__experimental_conditions = experimental_condition_dict
+
+    # ---- Single Bracket Subsetting
+    def __getitem__(self, item):
+        # Wrap single items in list to allow single/multiple item subsetting with the same code
+        if not isinstance(item, list):
+            item = [item]
+        # Model name indexing
+        if all([isinstance(name, str) for name in item]):
+            if all([name in self.condition_names for name in item]):
+                return [self.__experimental_conditions.get(name) for name in item] if len(item) > 1 else \
+                    self.__experimental_conditions.get(item[0])
+        # Numeric indexing
+        elif all([isinstance(idx, int) for idx in item]):
+            if max(item) > len(self.condition_names) - 1 or min(item) < 0:
+                raise IndexError(f"One of the specified indexes is out of bounds: valid indexes must be between"
+                                 f"0 and {len(self.condition_names) - 1}")
+            else:
+                return [self.experimental_conditions[idx] for idx in item] if len(item) > 1 else \
+                    self.experimental_conditions[item[0]]
+        # Invalid index
+        else:
+            raise ValueError(f"The value(s) {item} is/are not string(s) or integer(s), valid indexes are "
+                             f"{self.condition_names} or a value between {0} and {len(self.condition_names) - 1}")
 
     ## ---- Defining object attributes to get and set attributes, allows type checking and other error handling
     @property
@@ -88,73 +111,76 @@ class CancerModel:
         self.__model_type = new_model_type
 
     @property
-    def treatment_conditions(self):
-        return self.__treatment_conditions
+    def experimental_conditions(self):
+        return list(self.__experimental_conditions.values())
 
-    @treatment_conditions.setter
-    def treatment_conditions(self, new_treatment_conditions):
-        if not isinstance(new_treatment_conditions, dict):
+    @experimental_conditions.setter
+    def experimental_conditions(self, new_experimental_conditions):
+        if not isinstance(new_experimental_conditions, dict):
             raise TypeError("Please pass a dict with `ExperimentalCondition` objects as values!")
-        if any([not isinstance(val, ExperimentalCondition) for val in new_treatment_conditions.values()]):
+        if any([not isinstance(val, ExperimentalCondition) for val in new_experimental_conditions.values()]):
             raise TypeError("An item in your updated treatment conditions in not a `ExperimentalCondition` object.")
-        self.__treatment_conditions.update(new_treatment_conditions)
+        self.__experimental_conditions.update(new_experimental_conditions)
+
+    @property
+    def condition_names(self):
+        return list(self.__experimental_conditions.keys())
 
     ## ---- Implementing built in methods for `CancerModel` class
     def __repr__(self):
-        return ('\n'.join([f"<Cancer Model: {self.__name}",
-                           f"Treatment Conditions: {list(self.__treatment_conditions.keys())}",
-                           f"Source Id: {self.__source_id}",
-                           f"Start Date: {self.__variable_start}",
-                           f"Treatment Start Date: {self.__variable_treatment_start}",
-                           f"End Date: {self.__variable_end}>"]))
+        return ('\n'.join([f"<Cancer Model: {self.name}",
+                           f"Experimental Conditions: {self.condition_names}",
+                           f"Source Id: {self.source_id}",
+                           f"Start Date: {self.variable_start}",
+                           f"Treatment Start Date: {self.variable_treatment_start}",
+                           f"End Date: {self.variable_end}>"]))
 
     def __iter__(self):
         """Returns a dictionary object for iteration"""
         return CancerModelIterator(cancer_model=self)
 
     ## ---- Class methods
-    def add_treatment_condition(self, treatment_condition):
+    def add_experimental_condition(self, experimental_condition):
         """
         Add a `ExperimentalCondition` object to
 
-        :param treatment_condition: a ExperimentalCondition object
+        :param experimental_condition: a ExperimentalCondition object
         """
-        if not isinstance(treatment_condition, ExperimentalCondition):
+        if not isinstance(experimental_condition, ExperimentalCondition):
             raise TypeError("Only a `ExperimentalCondition` object can be added with this method")
-        if treatment_condition.name in list(self.treatment_conditions.keys()):
+        if experimental_condition.name in self.condition_names:
             raise TypeError(
-                f"A treatment condition named {treatment_condition.name} already exists in the `CancerModel`")
-        treatment_conds = self.treatment_conditions.copy()
-        treatment_conds[treatment_condition.name] = treatment_condition
-        self.treatment_conditions = treatment_conds
+                f"An experimental condition condition named {experimental_condition.name} already exists in the "
+                f"`CancerModel`")
+        self.__experimental_conditions.update({experimental_condition.name: experimental_condition})
 
-    def normalize_treatment_conditions(self):
+    def normalize_experimental_conditions(self):
         """
         Normalizes data for each ExperimentalCondition in the CancerModel object and calculates the start and end
         parameters.
              - Note: this requires the presence of a control!
         :return: [None]
         """
-        control = self.treatment_conditions.get("Control")
+        control = self.__experimental_conditions.get("Control")
         if not isinstance(control, ExperimentalCondition):
             raise TypeError("The `control` variable is not a `TreatmentConditon`, please ensure a treatment condition"
                             "named 'Control' exists in this object before trying to normalize.")
-        for treatment_condition_name, treatment_condition in self:
-            treatment_condition.normalize_data()
-            if treatment_condition_name != "Control":
-                treatment_condition.variable_start = max(treatment_condition.find_variable_start_index(),
-                                                         control.variable_treatment_start)
-                treatment_condition.end = min(control.variable_treatment_end_index,
-                                              treatment_condition.variable_treatment_end_index)
-                treatment_condition.create_full_data(control)
-                assert treatment_condition.full_data.size != 0
+        for experimental_condition_name, experimental_condition in self:
+            experimental_condition.normalize_data()
+            if experimental_condition_name != "Control":
+                experimental_condition.variable_start = max(experimental_condition.find_variable_start_index(),
+                                                            control.variable_treatment_start)
+                experimental_condition.end = min(control.variable_treatment_end_index,
+                                                 experimental_condition.variable_treatment_end_index)
+                experimental_condition.create_full_data(control)
+                assert experimental_condition.full_data.size != 0
 
     def fit_all_gps(self):
         """
         Fits Gaussian Process models to all `ExperimentalCondition`s in the `CancerModel` object
         :return: [None] Modifies the `CancerModel` object by reference.
         """
-        control = self.treatment_conditions.get("Control")
+        control = self.__experimental_conditions.get("Control")
         if not isinstance(control, ExperimentalCondition):
             raise TypeError(
                 "The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
@@ -180,34 +206,34 @@ class CancerModel:
         failed_AUC = []
         failed_tgi = []
 
-        control = self.treatment_conditions["Control"]
+        control = self.__experimental_conditions.get("Control")
         if not isinstance(control, ExperimentalCondition):
             raise TypeError(
                 "The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
                 "named 'Control' exists in this object.")
-        for condition_name, treatment_condition in self:
+        for condition_name, experimental_condition in self:
             if condition_name != "Control":
                 # MRECIST
                 try:
-                    treatment_condition.calculate_mrecist()
-                    assert (treatment_condition.mrecist is not None)
+                    experimental_condition.calculate_mrecist()
+                    assert (experimental_condition.mrecist is not None)
                 except ValueError as e:
-                    failed_mrecist.append((treatment_condition.source_id, e))
+                    failed_mrecist.append((experimental_condition.source_id, e))
                     print(e)
                     continue
 
                 # angle
                 try:
-                    treatment_condition.calculate_response_angles(control)
-                    assert (treatment_condition.response_angle is not None)
-                    treatment_condition.response_angle_control = {}
+                    experimental_condition.calculate_response_angles(control)
+                    assert (experimental_condition.response_angle is not None)
+                    experimental_condition.response_angle_control = {}
                     for i in control.replicates:
 
                         start = control.find_variable_start_index() - control.variable_treatment_start_index
                         if start is None:
                             raise TypeError("The 'start' parameter is None")
                         else:
-                            treatment_condition.response_angle_control[control.replicates[i]] = \
+                            experimental_condition.response_angle_control[control.replicates[i]] = \
                                 compute_response_angle(
                                     variable=control.variable[
                                              control.variable_treatment_start_index:
@@ -219,7 +245,7 @@ class CancerModel:
                                            control.variable_treatment_end_index + 1],
                                            start),
                                     start=start)
-                            treatment_condition.response_angle_rel_control[control.replicates[i]] = \
+                            experimental_condition.response_angle_rel_control[control.replicates[i]] = \
                                 compute_response_angle(
                                     variable=control.variable[
                                              control.variable_treatment_start_index:
@@ -233,55 +259,56 @@ class CancerModel:
                                     start=start)
 
                 except ValueError as e:
-                    failed_response_angle.append((treatment_condition.source_id, e))
+                    failed_response_angle.append((experimental_condition.source_id, e))
                     print(e)
                     continue
 
                 # compute AUC
                 try:
-                    treatment_condition.calculate_auc(control)
-                    treatment_condition.calculate_auc_norm(control)
+                    experimental_condition.calculate_auc(control)
+                    experimental_condition.calculate_auc_norm(control)
                     if fit_gp:
-                        treatment_condition.calculate_gp_auc()
+                        experimental_condition.calculate_gp_auc()
                         # FIXME:: May need to swap for treatment index
-                        treatment_condition.auc_gp_control = \
+                        experimental_condition.auc_gp_control = \
                             calculate_AUC(
                                 control.variable[control.variable_treatment_start_index:
                                                  (control.variable_treatment_end_index + 1)],
                                 control.gp.predict(
                                     control.variable[control.variable_treatment_start_index:
                                                      (control.variable_treatment_end_index + 1)])[0])
-                    treatment_condition.auc_control = {}
-                    start = max(treatment_condition.find_variable_start_index(), control.variable_treatment_start_index)
-                    end = min(treatment_condition.variable_treatment_end_index, control.variable_treatment_end_index)
+                    experimental_condition.auc_control = {}
+                    start = max(experimental_condition.find_variable_start_index(),
+                                control.variable_treatment_start_index)
+                    end = min(experimental_condition.variable_treatment_end_index, control.variable_treatment_end_index)
                     for i in control.replicates:
-                        treatment_condition.auc_control[control.replicates[i]] = calculate_AUC(
+                        experimental_condition.auc_control[control.replicates[i]] = calculate_AUC(
                             control.variable[start:end],
                             control.response[i, start:end])
-                        treatment_condition.auc_control_norm[control.replicates[i]] = calculate_AUC(
+                        experimental_condition.auc_control_norm[control.replicates[i]] = calculate_AUC(
                             control.variable[start:end],
                             control.response_norm[i, start:end])
                 except ValueError as e:
-                    failed_AUC.append((treatment_condition.source_id, e))
+                    failed_AUC.append((experimental_condition.source_id, e))
                     print(e)
                     continue
 
                 try:
-                    treatment_condition.calculate_tgi(control)
+                    experimental_condition.calculate_tgi(control)
                 except ValueError as e:
-                    failed_tgi.append((treatment_condition.source_id, e))
+                    failed_tgi.append((experimental_condition.source_id, e))
                     print(e)
                     continue
 
                     # PERCENT CREDIBLE INTERVALS
                 if fit_gp:
-                    treatment_condition.calculate_credible_intervals(control)
-                    assert (treatment_condition.credible_intervals != [])
-                    treatment_condition.calculate_credible_intervals_percentage()
-                    assert (treatment_condition.percent_credible_intervals is not None)
+                    experimental_condition.calculate_credible_intervals(control)
+                    assert (experimental_condition.credible_intervals != [])
+                    experimental_condition.calculate_credible_intervals_percentage()
+                    assert (experimental_condition.percent_credible_intervals is not None)
 
                     # compute GP derivatives:
-                    treatment_condition.compute_all_gp_derivatives(control)
+                    experimental_condition.compute_all_gp_derivatives(control)
 
         if report_name is not None:
             with open(report_name, 'w') as f:
@@ -315,8 +342,8 @@ class CancerModel:
             'variable_treatment_start': self.variable_treatment_start,
             'variable_end': self.variable_end,
             'model_type': self.model_type,
-            'treatment_conditions': dict([(name, condition.to_dict(json=True)) for name, condition in self]) if
-            recursive else self.treatment_conditions
+            'experimental_conditions': dict([(name, condition.to_dict(json=True)) for name, condition in self]) if
+            recursive else self.__experimental_conditions
         }
 
 
@@ -333,9 +360,9 @@ class CancerModelIterator:
         self.index = 0
 
     def __next__(self):
-        keys = list(self.model.treatment_conditions.keys())
-        if self.index <= len(self.model.treatment_conditions) - 1:
-            results = (keys[self.index], self.model.treatment_conditions.get(keys[self.index]))
+        keys = list(self.model.condition_names)
+        if self.index <= len(self.model.experimental_conditions) - 1:
+            results = (keys[self.index], self.model.experimental_conditions[self.index])
         else:
             raise StopIteration
         self.index += 1

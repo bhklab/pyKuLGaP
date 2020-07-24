@@ -8,7 +8,7 @@ import statsmodels.api as sm
 from .plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
     plot_experimental_condition, plot_gp, plot_histogram, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-from .helpers import get_all_treatment_conditions, calculate_AUC, calculate_null_kl, dict_to_string, \
+from .helpers import get_all_experimental_conditions, calculate_AUC, calculate_null_kl, dict_to_string, \
     relativize, centre, compute_response_angle
 
 from .io import read_pdx_data
@@ -129,7 +129,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
             print("CancerModel: " + str(patient.name))
 
             # need to ensure that we've found and processed the control.
-            control = patient.treatment_condition['Control']
+            control = patient.experimental_condition['Control']
             control.normalize_data()
 
             if fit_gp:
@@ -143,10 +143,10 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 assert (control.gp is not None)
                 assert (control.gp_kernel is not None)
 
-            for category in patient.treatment_condition.keys():
+            for category in patient.condition_name:
                 if category != 'Control':
 
-                    cur_case = patient.treatment_condition[category]
+                    cur_case = patient.experimental_condition[category]
                     cur_case.normalize_data()
                     cur_case.start = max(cur_case.find_start_date_index(), control.measurement_start)
                     cur_case.end = min(control.measurement_end, cur_case.measurement_end)
@@ -246,17 +246,17 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
     categories_by_drug = defaultdict(list)
     failed_by_drug = defaultdict(list)
     for patient in all_patients:
-        for key in patient.treatment_condition.keys():
-            if patient.treatment_condition[key].gp:
-                categories_by_drug[key].append(patient.treatment_condition[key])
+        for key in patient.condition_name:
+            if patient.experimental_condition[key].gp:
+                categories_by_drug[key].append(patient.experimental_condition[key])
             else:
-                failed_by_drug[key].append(patient.treatment_condition[key].name)
+                failed_by_drug[key].append(patient.experimental_condition[key].name)
 
     fig_count = 0
     cur_case.kl_p_cvsc = None
 
     print("Now computing KL divergences between controls for kl_control_vs_control - this may take a moment")
-    controls = [patient.treatment_condition["Control"] for patient in all_patients]
+    controls = [patient.experimental_condition["Control"] for patient in all_patients]
     if rerun_kl_null:
         kl_control_vs_control = calculate_null_kl(controls, None)
     else:
@@ -275,10 +275,10 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 patient = all_patients[i]
                 print("CancerModel: ", patient.name, "(", i + 1, "of", len(all_patients), ")")
                 if patient.name not in ignore_list:
-                    for category in patient.treatment_condition.keys():
+                    for category in patient.condition_name:
                         if category != 'Control':
                             print("ExperimentalCondition: ", category)
-                            cur_case = patient.treatment_condition[category]
+                            cur_case = patient.experimental_condition[category]
 
                             # IF FIRST OCCURRENCE OF DRUG: COMPUTE HISTOGRAM OF KL DIVERGENCES
                             # if cur_case.name not in kl_histograms:
@@ -339,7 +339,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
         if (allowed_list == []) or (all_patients[i].name in allowed_list):
             patient = all_patients[i]
 
-            control = patient.treatment_condition['Control']
+            control = patient.experimental_condition['Control']
             #     control.normalize_data()
             #     control.fit_gaussian_processes()
 

@@ -37,7 +37,8 @@ class ExperimentalCondition:
     from a single cancer cell line and treated with a specific compound.
 
     Thus the `ExperimentalCondition` class can be though of a storing data response data for a cancer model in two
-    dimensions: replicates (e.g., a specific mouse or culture) variable condition levels (e.g., a specific time or dose).
+    dimensions: replicates (e.g., a specific mouse or culture) variable condition levels (e.g., a specific time or
+    dose).
 
     Common experimental conditions:
         * Control, i.e. no treatment
@@ -93,7 +94,7 @@ class ExperimentalCondition:
         self.gp = None
         self.gp_kernel = None
 
-        # all below are between the <treatment_condition> and the control
+        # all below are between the <experimental_condition> and the control
         self.empirical_kl = None
 
         # KL divergence stats
@@ -148,6 +149,34 @@ class ExperimentalCondition:
         self.delta_log_likelihood_h0_h1 = None
 
         self.tgi = None
+
+    # ---- Single Bracket Subsetting
+    def __getitem__(self, item):
+        """
+
+        """
+        # Deal with slices
+        if isinstance(item, slice):
+            if item.stop > max(self.replicates) or item.start > max(self.replicates):
+                raise IndexError(f"Slice indexes out of bounds. Acceptable slice range is from "
+                                 f"{min(self.replicates)} to {max(self.replicates) + 1}.")
+            array = np.hstack([self.variable, self.response[item, :].T])
+            return pd.DataFrame.from_records(array, columns=['variable', *['replicate_' + str(idx) for idx in
+                                                                           range(item.start, item.stop,
+                                                                                 item.step if item.step is not None
+                                                                                 else 1)]])
+        # Deal with numeric indexing
+        if not isinstance(item, list):
+            item = [item]
+        if not all([isinstance(idx, int) for idx in item]):
+            raise IndexError("Index must be an int or list of ints!")
+        else:
+            if max(item) > max(self.replicates) or min(item) < min(self.replicates):
+                raise IndexError(f"One or more of {item} is an out of bounds index. Acceptable index range is from "
+                                 f"{min(self.replicates)} to {max(self.replicates)}.")
+            array = np.hstack([self.variable, self.response[item, :].T])
+            return pd.DataFrame.from_records(array, columns=['variable', *['replicate_' + str(idx) for idx in item]])
+
 
     def to_dict(self, json=False):
         """
@@ -219,7 +248,7 @@ class ExperimentalCondition:
     def create_full_data(self, control):
         """
         Creates a 2d numpy array with columns time, treatment and tumour size
-        :param control [Boolean] whether the treatment_condition is from the control group:
+        :param control [Boolean] whether the experimental_condition is from the control group:
         :return [None] Creates the full_data array
         """
 
@@ -239,7 +268,7 @@ class ExperimentalCondition:
     def calculate_tgi(self, control):
         """
         Calculates the Tumour Growth Index of a ExperimentalCondition object
-        :param control [Boolean] whether the treatment_condition is from the control group
+        :param control [Boolean] whether the experimental_condition is from the control group
         :return [None] Writes the calculated value into self.tgi
         """
 
@@ -248,9 +277,7 @@ class ExperimentalCondition:
             return 1 - (yt[j] - yt[i]) / (yc[j] - yc[i])
 
         start = max(self.find_variable_start_index(), control.variable_treatment_start_index)
-        print(f"Start index is {start}")
         end = min(self.variable_treatment_end_index, control.variable_treatment_end_index) + 1
-        print(f"End index is {end}")
 
         self.tgi = TGI(self.response_norm.mean(axis=0)[start:end],
                        control.response_norm.mean(axis=0)[start:end],
@@ -574,7 +601,7 @@ class ExperimentalCondition:
 
     def enumerate_mrecist(self):
         """
-        Builds up the mrecist_counts attribute with number of each occurrence of mRECIST treatment_condition.
+        Builds up the mrecist_counts attribute with number of each occurrence of mRECIST experimental_condition.
 
         :return:
         """
@@ -770,7 +797,7 @@ class ExperimentalCondition:
 
     def __repr__(self):
         """
-        Returns a string representation of the treatment_condition object.
+        Returns a string representation of the experimental_condition object.
 
         :return [string] The representation:
         """

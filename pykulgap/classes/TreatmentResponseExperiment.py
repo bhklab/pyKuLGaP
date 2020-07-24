@@ -19,7 +19,7 @@ class TreatmentResponseExperiment:
             object. Computes the statistics if they don't exist already.
 
     Methods:
-        - treatment_condition_names: [list] Returns a list of names for all unique `TreatmentConditon` within
+        - experimental_condition_names: [list] Returns a list of names for all unique `TreatmentConditon` within
             the object.
         - to_dict: [dict] Returns the object as a dictionary
         - compute_all_statistics: [None] Computes all summary statistics and assigns them as a DataFrame to the
@@ -39,6 +39,7 @@ class TreatmentResponseExperiment:
             raise TypeError('One or more of the items in the supplied list are not `CancerModel` objects.')
         model_names = [model.name for model in cancer_model_list]
         self.__cancer_models = dict(zip(model_names, cancer_model_list))
+        self.__summary_stats_df = None
 
     # -- Square Bracket Subsetting
 
@@ -91,20 +92,20 @@ class TreatmentResponseExperiment:
 
     # -- Implementing built-in methods
     def __repr__(self):
-        return f'Cancer Models: {self.model_names}\nTreatment Conditions: {self.treatment_condition_names()}\n'
+        return f'Cancer Models: {self.model_names}\nTreatment Conditions: {self.experimental_condition_names()}\n'
 
     def __iter__(self):
         """Returns the iterator object when a `TreatmentResponseExperiment` is called for looping"""
         return TREIterator(TRE=self)
 
     # -- Class methods
-    def treatment_condition_names(self):
+    def experimental_condition_names(self):
         """
         Return the names of all unique treatment conditions in the `TreatmentResponseExperiment` object
         """
-        treatment_conditions = [item for sublist in [model.treatment_conditions for model in self.cancer_models]
+        experimental_conditions = [item for sublist in [model.experimental_conditions for model in self.cancer_models]
                                 for item in sublist]
-        return list(np.unique(np.array(treatment_conditions)))
+        return list(np.unique(np.array(experimental_conditions)))
 
     def to_dict(self, recursive=False):
         """
@@ -119,7 +120,7 @@ class TreatmentResponseExperiment:
 
     def compute_all_statistics(self, null_kl_filename='', fit_gps=True):
         for _, cancer_model in self:
-            cancer_model.normalize_treatment_conditions()
+            cancer_model.normalize_experimental_conditions()
             if fit_gps:
                 cancer_model.fit_all_gps()
             cancer_model.compute_summary_statistics(fit_gp=fit_gps)

@@ -99,13 +99,14 @@ fit_gp= True
 
 all_patients = read_pdx_data(anon_filename)
 
-all_patients[0]
+all_patients["P1"]
 
 
 
 
-tc = all_patients.cancer_models[0].treatment_conditions.get("C1")
-cc = all_patients.cancer_models[0].treatment_conditions.get("Control")
+
+tc = all_patients['P1']['C1']
+cc = all_patients['P1']['Control']
 
 
 

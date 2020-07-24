@@ -23,7 +23,7 @@ def read_pdx_data(file_path):
         df_pat = df[df.patient == pname]
         new_pdx_model = CancerModel(name=pname, tumour_type="no_tumour_type",
                                     variable_start=None, variable_treatment_start=df_pat.drug_start_day.iloc[0],
-                                    variable_end=None, treatment_condition_dict={})
+                                    variable_end=None, experimental_condition_dict={})
 
         for cname in df_pat.category.unique():
             new_cond = None
@@ -42,9 +42,9 @@ def read_pdx_data(file_path):
                                              is_control=df_cat.control.iloc[0] == 1)
             new_cond.variable_treatment_start_index = df_cat.measurement_start.iloc[0]
             new_cond.variable_treatment_end_index = df_cat.measurement_end.iloc[0]
-            new_pdx_model.add_treatment_condition(new_cond)
+            new_pdx_model.add_experimental_condition(new_cond)
             del new_cond
-        new_pdx_model.normalize_treatment_conditions()
+        new_pdx_model.normalize_experimental_conditions()
         pdx_model_list.append(new_pdx_model)
         del new_pdx_model
     pdx_experiment = TreatmentResponseExperiment(pdx_model_list)
@@ -95,9 +95,9 @@ def read_pdx_from_byte_stream(csv_byte_stream):
                                       variable_treatment_start=min(variable), is_control=False)
 
     # -- build the CancerModel object from the TreatmentConditions
-    treatment_condition_dict = {'Control': control, 'Treatment': treatment}
+    experimental_condition_dict = {'Control': control, 'Treatment': treatment}
     cancer_model = CancerModel(name="from_webapp",
-                               treatment_condition_dict=treatment_condition_dict,
+                               experimental_condition_dict=experimental_condition_dict,
                                model_type="PDX",
                                tumour_type="unknown",
                                variable_start=min(df.Time),
@@ -109,7 +109,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
 
     # -- fit gaussian process model and calculate statistics
     for model_name, cancer_model in treatment_response_experiment:
-        cancer_model.normalize_treatment_conditions()
+        cancer_model.normalize_experimental_conditions()
         cancer_model.fit_all_gps()
         cancer_model.compute_summary_statistics(fit_gp=True)
 

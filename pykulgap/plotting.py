@@ -28,16 +28,16 @@ def create_measurement_dict(all_models, kl_null_filename=None):
     if kl_null_filename is not None:
         kl_control_vs_control = calculate_null_kl(filename=kl_null_filename)
     else:
-        kl_control_vs_control = calculate_null_kl(treatment_condition_list=[treatment_cond for _, model in all_models
+        kl_control_vs_control = calculate_null_kl(experimental_condition_list=[treatment_cond for _, model in all_models
                                                                             for _, treatment_cond in model])
 
     for name, cancer_model in all_models:
-        control = cancer_model.treatment_conditions.get('Control')
+        control = cancer_model._CancerModel__experimental_conditions.get('Control')
 
-        for treatment_condition in cancer_model.treatment_conditions.keys():
-            if 'Control' not in treatment_condition:
-                cur_case = cancer_model.treatment_conditions.get(treatment_condition)
-                key = str(cur_case.source_id) + "*" + str(treatment_condition)
+        for experimental_condition in cancer_model.condition_names:
+            if 'Control' not in experimental_condition:
+                cur_case = cancer_model._CancerModel__experimental_conditions.get(experimental_condition)
+                key = str(cur_case.source_id) + "*" + str(experimental_condition)
                 stats_dict[key] = {'tumour_type': cancer_model.tumour_type, 'mRECIST': None, 'num_mCR': None,
                                    'num_mPR': None,
                                    'num_mSD': None, 'num_mPD': None,
@@ -54,7 +54,7 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                                    'number_replicates': len(cur_case.replicates),
                                    'number_replicates_control': len(control.replicates),
                                    "tgi": cur_case.tgi}
-                stats_dict[key]['drug'] = treatment_condition
+                stats_dict[key]['drug'] = experimental_condition
 
                 try:
                     cur_case.calculate_mrecist()
@@ -398,7 +398,7 @@ def plot_everything(outname, treatment_response_expt, ag_df, kl_null_filename, f
     stats_df = treatment_response_expt.summary_stats_df.copy()
     with PdfPages(outname) as pdf:
         for model_name, cancer_model in treatment_response_expt:
-            control = cancer_model.treatment_conditions.get("Control")
+            control = cancer_model["Control"]
             for condition_name, treatment_cond in cancer_model:
                 if condition_name != "Control":
                     # TO ADD: SHOULD START ALSO CONTAIN control.measurement_start?!?
@@ -450,6 +450,7 @@ def plot_everything(outname, treatment_response_expt, ag_df, kl_null_filename, f
                             axis.text(0.05, 0.3, "not currently plotting GP fits")
 
                     axes[3, 0].axis("off")
+                    axes[3, 1].axis('off')
                     txt = []
                     mrlist = [str(stats_df.loc[name, mr]) for mr in ["num_mCR", "num_mPR", "num_mSD", "num_mPD"]]
                     txt.append("mRECIST: (" + ",".join(mrlist))
@@ -478,7 +479,6 @@ def plot_everything(outname, treatment_response_expt, ag_df, kl_null_filename, f
                     axes[0, 1].text(0.05, 0.3, resp_text, fontsize=20)
 
                     pdf.savefig(fig)
-                    plt.close()
 
 
 def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
@@ -522,7 +522,7 @@ def get_classification_dict_with_patients(all_cancer_models, stats_df, p_val, al
     predict = {"pykulgap": [], "AUC": [], "Angle": [], "mRECIST_Novartis": [], "mRECIST_ours": [],
                "TGI": []}
     for model_name, cancer_model in all_cancer_models:
-        for condition_name, treatment_cond in cancer_model.treatment_conditions:
+        for condition_name, treatment_cond in cancer_model.experimental_conditions:
             if condition_name != "Control":
                 name = str(cancer_model.name) + "*" + str(condition_name)
                 predict["pykulgap"].append(tsmaller(p_value(treatment_cond.kl_divergence, all_kl), p_val_kl, y=1, n=-1, na=0))
