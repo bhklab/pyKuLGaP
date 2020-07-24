@@ -125,7 +125,7 @@ i = 0
 pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
 
-## TODO: re-write so it only needs full_stats_df (and no longer all_cancer_models)
+## TODO: re-write so it only needs full_stats_df (and no longer treatment_response_expt)
 classifiers_df = get_classification_df(full_stats_df)
 
 

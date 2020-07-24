@@ -382,13 +382,12 @@ def plot_experimental_condition(case, control, means=None, savename="figure.pdf"
     return fig
 
 
-def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05,
+def plot_everything(outname, treatment_response_expt, ag_df, kl_null_filename, fit_gp=True, p_val=0.05, p_val_kl=0.05,
                     tgi_thresh=0.6):
     """
     Plot a long PDF, one page per cancer_model in all_cancer_models
     :param outname: The name under which the PDF will be saved
-    :param all_cancer_models: list of CancerModel objects to be plotted
-    :param stats_df: corresponding DataFrame of continuous statistics
+    :param treatment_response_expt: list of CancerModel objects to be plotted
     :param ag_df: corresponding DataFrame of binary classifiers
     :param kl_null_filename: Filename from which the KL null is read
     :param fit_gp: whether a GP was fitted
@@ -396,9 +395,9 @@ def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filenam
     :param p_val_kl: The p-value for the KuLGaP calculation
     :param tgi_thresh: The threshold for calling a TGI response.
     """
-    all_kl = calculate_null_kl(filename=kl_null_filename)
+    stats_df = treatment_response_expt.summary_stats_df.copy()
     with PdfPages(outname) as pdf:
-        for model_name, cancer_model in all_cancer_models:
+        for model_name, cancer_model in treatment_response_expt:
             control = cancer_model.treatment_conditions.get("Control")
             for condition_name, treatment_cond in cancer_model:
                 if condition_name != "Control":
@@ -406,28 +405,29 @@ def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filenam
                     start = max(treatment_cond.find_variable_start_index(), treatment_cond.variable_start_index)
                     end = min(treatment_cond.variable_end_index, control.variable_end_index)
                     name = str(cancer_model.name) + "*" + str(condition_name)
-                    #                    plt.figure(figsize = (24,18))
 
                     fig, axes = plt.subplots(4, 2, figsize=(32, 18))
-                    fig.suptitle(name, fontsize="variable-large")
+                    fig.suptitle(name, fontsize="x-large")
                     axes[0, 0].set_title("Replicates")
 
                     print("Now plotting cancer_model", name)
-                    for y_slice in treatment_cond.response_norm:
-                        axes[0, 0].plot(treatment_cond.variable[start:end], y_slice[start:end], '.r-')
+                    for response_slice in treatment_cond.response_norm:
+                        axes[0, 0].plot(treatment_cond.variable[start:end], response_slice[start:end], '.r-')
 
                     if control.response_norm is None:
-                        print("No control for cancer_model %d, category %s" % (n, str(condition_name)))
+                        print(f"No control for cancer_model {cancer_model.name}, category {condition_name}")
                         print(cancer_model)
                         print('----')
                     else:
-                        for y_slice in control.response_norm:
-                            axes[0, 0].plot(control.variable[start:end], y_slice[start:end], '.b-')
+                        for response_slice in control.response_norm:
+                            axes[0, 0].plot(control.variable[start:end], response_slice[start:end], '.b-')
 
                     axes[1, 0].set_title("Means")
-                    axes[1, 0].plot(treatment_cond.variable[start:end], treatment_cond.response_norm.mean(axis=0)[start:end], '.r-')
+                    axes[1, 0].plot(treatment_cond.variable[start:end],
+                                    treatment_cond.response_norm.mean(axis=0)[start:end], '.r-')
                     if control.response_norm is not None:
-                        axes[1, 0].plot(control.variable[start:end], control.response_norm.mean(axis=0)[start:end], '.b-')
+                        axes[1, 0].plot(control.variable[start:end],
+                                        control.response_norm.mean(axis=0)[start:end], '.b-')
 
                     axes[1, 1].set_title("Pointwise KL divergence")
 
@@ -442,9 +442,9 @@ def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filenam
                     axes[2, 1].set_title("GP plot: control")
                     if fit_gp:
                         treatment_cond.gp.plot(ax=axes[2, 0])
-                        pl.show(block=True)
+                        pl.show()
                         control.gp.plot(ax=axes[2, 1])
-                        pl.show(block=True)
+                        pl.show()
                     else:
                         for axis in [axes[2, 0], axes[2, 1]]:
                             axis.text(0.05, 0.3, "not currently plotting GP fits")
@@ -466,7 +466,8 @@ def plot_everything(outname, all_cancer_models, stats_df, ag_df, kl_null_filenam
                            "mRECIST (Novartis): " + tsmaller(stats_df.loc[name, "perc_mPD"], 0.5),
                            "mRECIST (ours): " + tsmaller(
                                plusnone(stats_df.loc[name, "perc_mPD"], stats_df.loc[name, "perc_mSD"]), 0.5),
-                           "Angle: " + mw_letter(treatment_cond.response_angle_rel, treatment_cond.response_angle_rel_control,
+                           "Angle: " + mw_letter(treatment_cond.response_angle_rel,
+                                                 treatment_cond.response_angle_rel_control,
                                                  pval=p_val),
                            "AUC: " + mw_letter(treatment_cond.auc_norm, treatment_cond.auc_control_norm, pval=p_val),
                            "TGI: " + tsmaller(tgi_thresh, treatment_cond.tgi)]
@@ -489,7 +490,7 @@ def get_classification_df(stats_df, p_val=0.05, p_val_kl=0.05, tgi_thresh=0.6):
     :param tgi_thresh: The threshold for calling a TGI response.    
     :return:
     """
-    responses = stats_df.copy()[["kl"]]
+    responses = stats_df[["kl"]].copy()
 
     responses["kulgap"] = stats_df.kl_p_cvsc.apply(tsmaller, v2=p_val, y=1, n=-1, na=0)
     responses["mRECIST-Novartis"] = stats_df.perc_mPD.apply(tsmaller, v2=0.5, y=1, n=-1, na=0)

@@ -114,12 +114,12 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
     # =============================================================================
     # GP fitting and calculation of other parameters.
     # =============================================================================
-    # TODO: replace by fit_all_gps(all_cancer_models, ... )
+    # TODO: replace by fit_all_gps(treatment_response_expt, ... )
     for i in range(0, len(all_patients)):
         print("Now dealing with patient %d of %d" % (i + 1, len(all_patients)))
 
         if (allowed_list == []) or (all_patients[i].name in allowed_list):
-            # if all_cancer_models[i].name not in ignore_list:
+            # if treatment_response_expt[i].name not in ignore_list:
             print("Num failed mRECISTS: " + str(len(failed_mrecist)))
             print("Num failed plots: " + str(len(failed_plot)))
             print("Num failed p values: " + str(len(failed_p_value)))
@@ -241,7 +241,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
 
     # COMPUTATION OF P-VALUES IN SEPARATE ITERATION: WE FIRST NEED TO HAVE FIT ALL THE GPs
 
-    # NOW CYCLE AGAIN THROUGH all_cancer_models TO COMPUTE kl p-values:
+    # NOW CYCLE AGAIN THROUGH treatment_response_expt TO COMPUTE kl p-values:
 
     categories_by_drug = defaultdict(list)
     failed_by_drug = defaultdict(list)
@@ -315,7 +315,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
                 outfile.write(",".join(map(str, value)))
                 outfile.write("\n")
     print("Done computing KL p-values, saved to {}".format(histograms_outfile))
-    # all_kl = [variable["case"].kl_divergence for variable in get_all_cats(all_cancer_models).values() if
+    # all_kl = [variable["case"].kl_divergence for variable in get_all_cats(treatment_response_expt).values() if
     #           str(variable["case"].kl_divergence) != "nan"]
 
     with open(out_report, 'w') as f:
