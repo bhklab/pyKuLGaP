@@ -7,4 +7,5 @@ global-include *.py
 
 exclude .gitignore
 recursive-exclude dist *
-recusrive-exclude __pycache__ *
+recursive-exclude __pycache__ *
+exclude test.py
