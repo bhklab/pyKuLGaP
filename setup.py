@@ -4,7 +4,7 @@ with open("README.md") as fh:
     readme = fh.read()
 
 setup(name='pykulgap',
-      version='0.0.4',
+      version='0.0.5',
       description="Functions for statistical analysis of treatment response curves in patient derived xenograph (PDX) models of cancer.",
       long_description=readme,
       long_description_content_type='text/markdown',

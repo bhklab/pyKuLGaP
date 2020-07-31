@@ -125,7 +125,7 @@ class TreatmentResponseExperiment:
                 cancer_model.fit_all_gps()
             cancer_model.compute_summary_statistics(fit_gp=fit_gps)
         if not null_kl_filename:
-            null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/pypi/data/kl_control_vs_control.csv'
+            null_kl_filename = 'https://raw.githubusercontent.com/bhklab/pyKuLGaP/master/data/kl_control_vs_control.csv'
         self.__summary_stats_df = pd.DataFrame.from_dict(create_measurement_dict(self, null_kl_filename)).transpose()
 
 
