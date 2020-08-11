@@ -173,7 +173,7 @@ def run_kulgap_pipeline(results_path, data_path, fit_gp=True, draw_plots=True, r
 
                     # MRECIST
                     try:
-                        cur_case.0calculate_mrecist()
+                        cur_case.calculate_mrecist()
                         assert (cur_case.mrecist is not None)
                     except ValueError as e:
                         failed_mrecist.append((cur_case.source_id, e))
