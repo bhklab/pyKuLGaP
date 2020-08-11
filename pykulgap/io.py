@@ -16,8 +16,8 @@ def read_pdx_data(file_path):
     """
     pdx_model_list = []
     df = pd.read_csv(file_path, index_col=0)
-    # FIXME:: Remove this subset in the final release!
-    for pname in df.patient.unique()[0:6]:
+    # TODO:: Remove from production
+    for pname in df.patient.unique():
         new_pdx_model = None
         print(pname)
         df_pat = df[df.patient == pname]

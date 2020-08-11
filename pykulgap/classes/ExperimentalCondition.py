@@ -81,7 +81,7 @@ class ExperimentalCondition:
         self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
         self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
 
-        # Assume treatment start is the same as the start of the independent variable, unless the user assigne
+        # Assume treatment start is the same as the start of the independent variable, unless the user assign
         self.variable_treatment_start_index = self.variable_start_index
         self.variable_treatment_end_index = self.variable_end_index
 
@@ -103,6 +103,7 @@ class ExperimentalCondition:
 
         # naive stats
         # {701: 'mCR', 711: 'mPR', ...}
+        self.best_avg_response = np.array([], dtype=np.float64)
         self.mrecist = {}
         self.mrecist_counts = None
 
@@ -559,6 +560,9 @@ class ExperimentalCondition:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
+                if self.best_avg_response is not None:
+                    self.best_avg_response = np.array([], dtype=np.float64)
+                self.best_avg_response = np.append(self.best_avg_response, min(average_responses))
                 if min(responses) < -95 and min(average_responses) < -40:
                     self.mrecist[self.replicates[i]] = 'mCR'
                 elif min(responses) < -50 and min(average_responses) < -20:
@@ -590,6 +594,7 @@ class ExperimentalCondition:
                         responses.append(((volume - initial_volume) / initial_volume) * 100)
                         average_responses.append(np.average(responses))
 
+                self.best_avg_response = np.append(self.best_avg_response, min(average_responses))
                 if min(responses) < -95 and min(average_responses) < -40:
                     self.mrecist[self.replicates[i]] = 'mCR'
                 elif min(responses) < -50 and min(average_responses) < -20:

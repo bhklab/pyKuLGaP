@@ -103,8 +103,9 @@ class TreatmentResponseExperiment:
         """
         Return the names of all unique treatment conditions in the `TreatmentResponseExperiment` object
         """
-        experimental_conditions = [item for sublist in [model.experimental_conditions for model in self.cancer_models]
-                                for item in sublist]
+        experimental_conditions = [item.name for sublist in [model.experimental_conditions for model in
+                                                             self.cancer_models]
+                                   for item in sublist]
         return list(np.unique(np.array(experimental_conditions)))
 
     def to_dict(self, recursive=False):

@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from math import atan
+from math import pi
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
 from matplotlib import pylab as pl, patches as mp
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy import stats
@@ -33,12 +37,18 @@ def create_measurement_dict(all_models, kl_null_filename=None):
 
     for name, cancer_model in all_models:
         control = cancer_model._CancerModel__experimental_conditions.get('Control')
+        control.calculate_mrecist()
 
         for experimental_condition in cancer_model.condition_names:
             if 'Control' not in experimental_condition:
                 cur_case = cancer_model._CancerModel__experimental_conditions.get(experimental_condition)
                 key = str(cur_case.source_id) + "*" + str(experimental_condition)
-                stats_dict[key] = {'tumour_type': cancer_model.tumour_type, 'mRECIST': None, 'num_mCR': None,
+                stats_dict[key] = {'tumour_type': cancer_model.tumour_type,
+                                   'mRECIST': None,
+                                   'mRECIST_control': None,
+                                   'lm_slope': None,
+                                   'best_avg_response': None,
+                                   'num_mCR': None,
                                    'num_mPR': None,
                                    'num_mSD': None, 'num_mPD': None,
                                    'perc_mCR': None, 'perc_mPR': None,
@@ -74,7 +84,15 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                         cur_case.kl_p_cvsc = None
 
                 num_replicates = len(cur_case.replicates)
-                stats_dict[key]['mRECIST'] = dict_to_string(cur_case.mrecist)
+                stats_dict[key]['mRECIST'] = cur_case.mrecist
+                model_df = pd.DataFrame({
+                    'Response': cur_case.response.mean(axis=0),
+                    'Variable': cur_case.variable.flatten()
+                })
+                fit = smf.ols(formula="Response ~ Variable + 0", data=model_df).fit()
+                stats_dict[key]['lm_slope'] = atan(fit.params['Variable']) * (180 / pi)
+                stats_dict[key]['best_avg_response'] = cur_case.best_avg_response
+                stats_dict[key]['mRECIST_control'] = control.mrecist
                 stats_dict[key]['num_mCR'] = cur_case.mrecist_counts['mCR']
                 stats_dict[key]['num_mPR'] = cur_case.mrecist_counts['mPR']
                 stats_dict[key]['num_mSD'] = cur_case.mrecist_counts['mSD']
@@ -92,7 +110,7 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 stats_dict[key]['gp_deriv'] = np.nanmean(cur_case.rates_list)
                 stats_dict[key]['gp_deriv_control'] = np.nanmean(cur_case.rates_list_control)
 
-                stats_dict[key]['auc'] = dict_to_string(cur_case.auc)
+                stats_dict[key]['auc'] = cur_case.auc
                 stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)
                 stats_dict[key]['auc_control'] = dict_to_string(cur_case.auc_control)
                 stats_dict[key]['auc_control_norm'] = dict_to_string(cur_case.auc_control_norm)

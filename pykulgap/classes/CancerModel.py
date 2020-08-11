@@ -209,7 +209,7 @@ class CancerModel:
         control = self.__experimental_conditions.get("Control")
         if not isinstance(control, ExperimentalCondition):
             raise TypeError(
-                "The `control` variable is not a `ExperimentalCondition`, please ensure a treatment condition"
+                "The `control` variable is not an `ExperimentalCondition`, please ensure a treatment condition"
                 "named 'Control' exists in this object.")
         for condition_name, experimental_condition in self:
             if condition_name != "Control":

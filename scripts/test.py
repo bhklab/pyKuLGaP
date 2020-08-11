@@ -92,7 +92,7 @@ failed_mrecist = []
 allowed_list = []
 
 P_VAL = 0.05
-fit_gp= True
+fit_gp = True
 
 
 
@@ -100,9 +100,6 @@ fit_gp= True
 all_patients = read_pdx_data(anon_filename)
 
 all_patients["P1"]
-
-
-
 
 
 tc = all_patients['P1']['C1']
@@ -118,11 +115,11 @@ full_stats_df = all_patients.summary_stats_df
 # COMPILATION OF STATISTICS
 # =============================================================================
 
-old_stats_df = pd.read_csv('https://raw.githubusercontent.com/bhklab/pyKuLGaP/8413a329ad64da4f8e1a2a8efd87d856619d3937/results/statistics_all.csv')
-old_stats_df = old_stats_df[full_stats_df.columns]
-
-i = 0
-pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
+# old_stats_df = pd.read_csv('https://raw.githubusercontent.com/bhklab/pyKuLGaP/8413a329ad64da4f8e1a2a8efd87d856619d3937/results/statistics_all.csv')
+# old_stats_df = old_stats_df[full_stats_df.columns]
+#
+# i = 0
+# pd.DataFrame([old_stats_df.iloc[i, :], full_stats_df.iloc[i, :]]).T
 
 
 ## TODO: re-write so it only needs full_stats_df (and no longer treatment_response_expt)
