@@ -14,6 +14,9 @@ from GPy.models import GPRegression
 from scipy.integrate import quad
 from scipy.stats import norm
 
+# Linear Modelling
+import statsmodels.formula.api as smf
+
 import numpy as np
 from pykulgap.helpers import calculate_AUC, compute_response_angle, relativize, centre
 from pykulgap.plotting import create_measurement_dict
@@ -22,6 +25,7 @@ import pandas as pd
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 ## ---- ExperimentalCondition Object
 
@@ -81,7 +85,7 @@ class ExperimentalCondition:
         self.variable_start_index = np.where(self.variable.ravel() == self.variable_start)[0][0]
         self.variable_end_index = np.where(self.variable.ravel() == self.variable_end)[0][0]
 
-        # Assume treatment start is the same as the start of the independent variable, unless the user assign
+        # Assume treatment start is the same as the start of the independent variable, unless the user assigns
         self.variable_treatment_start_index = self.variable_start_index
         self.variable_treatment_end_index = self.variable_end_index
 
@@ -106,6 +110,7 @@ class ExperimentalCondition:
         self.best_avg_response = np.array([], dtype=np.float64)
         self.mrecist = {}
         self.mrecist_counts = None
+        self.linear_models = []
 
         # {701: response angle, ...}
         self.response_angle = {}
@@ -154,7 +159,11 @@ class ExperimentalCondition:
     # ---- Single Bracket Subsetting
     def __getitem__(self, item):
         """
+        Implementation of slicing and single bracket subsetting syntax for this object
 
+        :item [int or slice object]
+
+        :return []
         """
         # Deal with slices
         if isinstance(item, slice):
@@ -170,7 +179,7 @@ class ExperimentalCondition:
         if not isinstance(item, list):
             item = [item]
         if not all([isinstance(idx, int) for idx in item]):
-            raise IndexError("Index must be an int or list of ints!")
+            raise IndexError("Index must be an int, list of ints or a slice object!")
         else:
             if max(item) > max(self.replicates) or min(item) < min(self.replicates):
                 raise IndexError(f"One or more of {item} is an out of bounds index. Acceptable index range is from "
@@ -178,12 +187,12 @@ class ExperimentalCondition:
             array = np.hstack([self.variable, self.response[item, :].T])
             return pd.DataFrame.from_records(array, columns=['variable', *['replicate_' + str(idx) for idx in item]])
 
-
     def to_dict(self, json=False):
         """
         Convert a ExperimentalCondition object into a dictionary with attributes as keys for their associated values. If
         `json` is True, all values will be coerced to JSONizable Python base types.
         """
+
         # Helper to convert any NumPy types into base types
         def _if_numpy_to_base(object):
             if isinstance(object, np.ndarray):
@@ -235,15 +244,6 @@ class ExperimentalCondition:
         :param response [array] the array of values to be normalised:
         :return [array] the normalised array:
         """
-
-        # if response.ndim == 1:
-        #     return np.log((response + 0.0001) / np.median(response[treatment_start_index]))
-        # else:
-        # print(self.variable_treatment_start)
-        # print(self.variable)
-        # print(response)
-        #
-        # print(np.log(np.asarray((response.T + 0.01) / response.T[int(treatment_start_index)], dtype=float).T) + 1)
         return np.log(np.asarray((response.T + 0.01) / response.T[int(treatment_start_index)], dtype=float).T) + 1
 
     def create_full_data(self, control):
@@ -311,7 +311,7 @@ class ExperimentalCondition:
         self.gp_kernel = RBF(input_dim=1, variance=1., lengthscale=10.)
 
         response_norm_trunc = self.response_norm[
-                                :, self.variable_treatment_start_index:self.variable_treatment_end_index
+                              :, self.variable_treatment_start_index:self.variable_treatment_end_index
                               ]
 
         # # Determine index of first mouse death to remove all NaNs before fitting the model
@@ -346,6 +346,25 @@ class ExperimentalCondition:
             self.gp_h1.optimize_restarts(num_restarts=num_restarts, messages=False, robust=True)
 
             self.delta_log_likelihood_h0_h1 = self.gp_h1.log_likelihood() - self.gp_h0.log_likelihood()
+
+    def fit_linear_models(self):
+        """
+        Fits a separate OLS model, "Response ~ Variable + 0", to each replicate in the object.
+
+        :return [list] List of OLS model objects, with each index corresponding to the replicate that model was fit for.
+        """
+        model_dfs = [pd.DataFrame({"Response": resp, "Variable": self.variable.flatten()}) for resp in self.response]
+        self.linear_models = [smf.ols(formula="Response ~ Variable + 0", data=model_df).fit() for model_df in model_dfs]
+
+    def calculate_lm_slopes(self):
+        """
+        Calculate the slope of each replicate linear model in degrees. The slope is defined as the arctan of the
+        coefficient for the independent variable in the linear model. Results are converted to degrees.
+
+        :return [ndarray] Slope of the linear model for each replicate in degrees.
+        """
+        params = np.array([model.params.values.item() for model in self.linear_models])
+        return np.arctan(params) * (180 / np.pi)
 
     def calculate_kl_divergence(self, control):
         """
@@ -613,7 +632,8 @@ class ExperimentalCondition:
 
         # TODO:: Instead of error, we could just call method to calculate mrecist, then give the user a warning?
         if self.mrecist is None:
-            raise ValueError("`ExperimentalCondition` object mrecist attribute is none, please calculate mrecist first!")
+            raise ValueError(
+                "`ExperimentalCondition` object mrecist attribute is none, please calculate mrecist first!")
 
         self.mrecist_counts = Counter(mCR=0, mPR=0, mSD=0, mPD=0)
         for replicate in self.replicates:

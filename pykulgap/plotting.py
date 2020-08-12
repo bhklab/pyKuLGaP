@@ -38,6 +38,7 @@ def create_measurement_dict(all_models, kl_null_filename=None):
     for name, cancer_model in all_models:
         control = cancer_model._CancerModel__experimental_conditions.get('Control')
         control.calculate_mrecist()
+        control.fit_linear_models()
 
         for experimental_condition in cancer_model.condition_names:
             if 'Control' not in experimental_condition:
@@ -46,8 +47,9 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 stats_dict[key] = {'tumour_type': cancer_model.tumour_type,
                                    'mRECIST': None,
                                    'mRECIST_control': None,
-                                   'lm_slope': None,
                                    'best_avg_response': None,
+                                   'best_avg_response_control': None,
+                                   'lm_slopes': None,
                                    'num_mCR': None,
                                    'num_mPR': None,
                                    'num_mSD': None, 'num_mPD': None,
@@ -69,6 +71,7 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 try:
                     cur_case.calculate_mrecist()
                     cur_case.enumerate_mrecist()
+                    cur_case.fit_linear_models()
                 except Exception as e:
                     print(e)
                     continue
@@ -85,14 +88,12 @@ def create_measurement_dict(all_models, kl_null_filename=None):
 
                 num_replicates = len(cur_case.replicates)
                 stats_dict[key]['mRECIST'] = cur_case.mrecist
-                model_df = pd.DataFrame({
-                    'Response': cur_case.response.mean(axis=0),
-                    'Variable': cur_case.variable.flatten()
-                })
-                fit = smf.ols(formula="Response ~ Variable + 0", data=model_df).fit()
-                stats_dict[key]['lm_slope'] = atan(fit.params['Variable']) * (180 / pi)
-                stats_dict[key]['best_avg_response'] = cur_case.best_avg_response
                 stats_dict[key]['mRECIST_control'] = control.mrecist
+                stats_dict[key]['best_avg_response'] = cur_case.best_avg_response
+                stats_dict[key]['best_avg_response_control'] = control.best_avg_response
+                stats_dict[key]['lm_slopes'] = cur_case.calculate_lm_slopes()
+                stats_dict[key]['lm_slopes_control'] = control.calculate_lm_slopes()
+
                 stats_dict[key]['num_mCR'] = cur_case.mrecist_counts['mCR']
                 stats_dict[key]['num_mPR'] = cur_case.mrecist_counts['mPR']
                 stats_dict[key]['num_mSD'] = cur_case.mrecist_counts['mSD']

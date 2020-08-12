@@ -6,13 +6,9 @@ Created on Tue Jul 14 09:07:30 2020
 @author: ortmann_j
 """
 
+from pykulgap.io import read_pdx_data
 from pykulgap.plotting import plot_everything, create_and_plot_agreements, get_classification_df, \
     create_and_plot_FDR, create_and_save_KT, plot_histograms_2c
-
-from pykulgap.io import read_pdx_data
-from pykulgap.classes import ExperimentalCondition
-
-import pandas as pd
 
 results_folder = "results"
 data_folder = "data/"
@@ -99,7 +95,7 @@ fit_gp = True
 
 all_patients = read_pdx_data(anon_filename)
 
-all_patients["P1"]
+all_patients = all_patients
 
 
 tc = all_patients['P1']['C1']
@@ -145,27 +141,3 @@ plot_histograms_2c(full_stats_df, classifiers_df, scatterplot_outfigname)
 create_and_save_KT(classifiers_df, KT_outname)
 
 plot_everything(allplot_figname, all_patients, full_stats_df, classifiers_df, kl_null_filename)
-
-
-
-
-# #quick verification:
-#
-# statistics_old=pd.read_csv("results/test-run-old/statistics_all.csv",index_col=0)
-#
-# classifiers_old = pd.read_csv("results/test-run-old/classifiers.csv",index_col=0).rename(columns = {"mRECIST-Novartis":"mRECIST"})
-#
-# if np.all(full_stats_df == statistics_old):
-#     print("OK!")
-# else:
-#
-#     for i,col in enumerate(full_stats_df.columns):
-#         if full_stats_df.iloc[0,i]!=statistics_old.iloc[0,i]:
-#             print(col)
-#             if np.abs(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])>0.00001:
-#                 print(col)
-#                 print(full_stats_df.iloc[0,i]-statistics_old.iloc[0,i])
-#     else:
-#         print("Only rounding errors")
-#
-#
