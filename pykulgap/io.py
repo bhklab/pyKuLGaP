@@ -64,24 +64,25 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     stream = io.StringIO(csv_byte_stream.decode('utf-8'))
     df = pd.read_csv(stream)
 
+    # -- ensure each time is unqiue
+    if any(df.Time.duplicated()):
+        raise ValueError("One or more time points are duplicated, please collapse observations so that each"
+                         "time is unique!")
+
+    # -- drop any empty columns
+    df = df.iloc[:, [not bool(re.match('Unnamed.*', col)) for col in df.columns]].copy()
+
+    # -- linear interpolate any missing values per column up to the last observation
+    df.interpolate(method='linear', limit=None, limit_area='inside', inplace=True)
+
+    # -- drop all rows after the first mouse dies since the gaussian process model can't deal with NaNs
+    first_death_idx = min(df.notnull().sum(axis=0))
+    df = df.iloc[0:first_death_idx, :].copy()
+
     # -- parse the control and treatment columns to NumPy arrays
     control_response = df.iloc[:, [bool(re.match('Control.*', col)) for col in df.columns]].to_numpy()
     variable = df.Time.to_numpy()
     treatment_response = df.iloc[:, [bool(re.match('Treatment.*', col)) for col in df.columns]].to_numpy()
-
-    if control_response.shape != treatment_response.shape:
-        raise ValueError("Oh no! We can't seem to parse your control and treatment columns. Please ensure the correct"
-                         "formatting has been used for your .csv file.")
-
-    # -- subset to death of first mouse
-    # Determine index of first mouse death to remove all NaNs before fitting the model
-    first_death_idx = min(min(np.sum(~np.isnan(control_response), axis=0)),
-                          min(np.sum(~np.isnan(treatment_response), axis=0)))
-
-    # Subset the relevant data to first_death_idx
-    control_response = control_response[0:first_death_idx, :]
-    treatment_response = treatment_response[0:first_death_idx, :]
-    variable = variable[0:first_death_idx]
 
     # -- build the ExperimentalCondition objects from the df
     control = ExperimentalCondition('Control', source_id='from_webapp',
@@ -94,15 +95,16 @@ def read_pdx_from_byte_stream(csv_byte_stream):
                                       variable=variable, response=treatment_response,
                                       variable_treatment_start=min(variable), is_control=False)
 
+
     # -- build the CancerModel object from the TreatmentConditions
     experimental_condition_dict = {'Control': control, 'Treatment': treatment}
     cancer_model = CancerModel(name="from_webapp",
                                experimental_condition_dict=experimental_condition_dict,
                                model_type="PDX",
                                tumour_type="unknown",
-                               variable_start=min(df.Time),
-                               variable_treatment_start=min(df.Time),
-                               variable_end=max(df.Time))
+                               variable_start=min(variable),
+                               variable_treatment_start=min(variable),
+                               variable_end=max(variable))
 
     # -- build the TreatmentResponseExperiment object from the CancerModel
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
