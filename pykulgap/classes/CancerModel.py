@@ -371,7 +371,7 @@ class CancerModel:
         gp_auc_treatment_vs_control = self[treatment_name].auc_gp_control - self[treatment_name].auc_gp
         return gp_auc_treatment_vs_control
 
-    def calculate_avg_auc_treatment_vs_control(self, treatment_name, normalized=False):
+    def calculate_avg_auc_control_vs_treatment(self, treatment_name, normalized=False):
         """
         Calculates the average AUC difference between the control vs a specified treatment
         condition. Defined as the average AUC across all replicates for the control minus the same for the specified

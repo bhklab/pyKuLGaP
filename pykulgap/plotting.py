@@ -115,8 +115,10 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)
                 stats_dict[key]['auc_control'] = dict_to_string(cur_case.auc_control)
                 stats_dict[key]['auc_control_norm'] = dict_to_string(cur_case.auc_control_norm)
-                stats_dict[key]['auc_control_gp_vs_treatment_gp'] = \
-                    cancer_model.calculate_auc_treatment_minus_control(experimental_condition)
+                stats_dict[key]['auc_gp_control_vs_treatment'] = \
+                    cancer_model.calculate_gp_auc_control_vs_treatment(experimental_condition)
+                stats_dict[key]['auc_avg_control_vs_treatment'] = \
+                    cancer_model.calculate_avg_auc_control_vs_treatment(experimental_condition)
                 try:
                     stats_dict[key]['auc_gp'] = cur_case.auc_gp
                     stats_dict[key]['auc_gp_control'] = cur_case.auc_gp_control

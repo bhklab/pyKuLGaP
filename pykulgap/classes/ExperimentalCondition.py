@@ -54,7 +54,6 @@ class ExperimentalCondition:
 
     It can have multiple replicates (ie. data for multiple growth curves)
     """
-
     def __init__(self, name, source_id=None, variable=None, response=None, replicates=None,
                  variable_treatment_start=None, is_control=False):
         """
@@ -159,17 +158,6 @@ class ExperimentalCondition:
 
         self.tgi = None
 
-    # ---- properties
-    @property
-    def initial_response(self):
-        idx = min(self.variable_treatment_start_index, self.find_variable_start_index())
-        return self.response[idx]
-
-    @property
-    def initial_response_norm(self):
-        idx = min(self.variable_treatment_start_index, self.find_variable_start_index())
-        return self.response_norm[idx]
-
     # ---- Single Bracket Subsetting
     def __getitem__(self, item):
         """
@@ -245,7 +233,6 @@ class ExperimentalCondition:
 
         :return [None] modifies self.response_norm
         """
-
         logger.info("Normalizing data for " + self.name)
         self.response_norm = self.__normalize_treatment_start_variable_and_log_transform(self.response,
                                                                                          self.find_variable_start_index())
@@ -532,8 +519,8 @@ class ExperimentalCondition:
 
         :return
         """
-        #
         self.auc_gp = self.__calculate_AUC(self.variable, self.gp.predict(self.variable)[0])
+
 
     def calculate_auc(self, control):
         """

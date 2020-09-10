@@ -61,7 +61,12 @@ def read_pdx_from_byte_stream(csv_byte_stream):
         a PDX experiment.
     :return [TreatmentResponseExperiment] object containing the data from the .csv byte stream
     """
-    stream = io.StringIO(csv_byte_stream.decode('utf-8'))
+    # ---- remove empty lines from the csv string
+    csv_string = csv_byte_stream.decode('utf-8')
+    csv_string_formatted = re.sub('\n[\n\r]+', '\n', csv_string)
+
+    # --- convert string to stream for reading into DataFrame
+    stream = io.StringIO(csv_string_formatted)
     df = pd.read_csv(stream)
 
     # -- ensure each time is unqiue
