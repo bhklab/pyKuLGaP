@@ -126,6 +126,8 @@ class CancerModel:
     def condition_names(self):
         return list(self.__experimental_conditions.keys())
 
+
+
     ## ---- Implementing built in methods for `CancerModel` class
     def __repr__(self):
         return ('\n'.join([f"<Cancer Model: {self.name}",
@@ -331,7 +333,7 @@ class CancerModel:
     def to_dict(self, recursive=False):
         """
         Convert a `CancerModel` object to a dictionary, with attribute names as keys for their respective values. If
-        `recrusive` is True, also converts all `TreatmentCondtion` objects in the CancerModel to dictionaries such
+        `recursive` is True, also converts all `TreatmentCondition` objects in the CancerModel to dictionaries such
         that only JSONizable Python types remain in the nested dictionary.
         """
         return {
@@ -346,6 +348,58 @@ class CancerModel:
             recursive else self.__experimental_conditions
         }
 
+    def calculate_gp_auc_control_vs_treatment(self, treatment_name):
+        """
+        Calculates the AUC difference between the Gaussian Process fit to the control vs a specified treatment
+        condition. Defined as the total AUC for the control Gaussian Process, minus the total AUC for the specified
+        treatment Gaussian Process.
+
+        In this situation, a negative value would indicate that the treatment tumour grew more than the control
+        tumour, indicating that the treatment is likely ineffective.
+
+        @param treatment_name [string] The name of a treatment condition in the CancerModel object to compare to the
+            control
+
+        @return [float] The difference between the AUC of the control Gaussian Process and the AUC of the treatment
+            Gaussian process.
+        """
+        if not isinstance(treatment_name, str):
+            raise ValueError(f"The treatment_name parameter must be a string, not a {type(treatment_name)}!")
+        if treatment_name not in self.condition_names:
+            raise ValueError(f"The treatment condition {treatment_name} is not a valid treatment in this "
+                             f"CancerModel... Please choose from: {','.join(self.condition_names)}.")
+        gp_auc_treatment_vs_control = self[treatment_name].auc_gp_control - self[treatment_name].auc_gp
+        return gp_auc_treatment_vs_control
+
+    def calculate_avg_auc_treatment_vs_control(self, treatment_name, normalized=False):
+        """
+        Calculates the average AUC difference between the control vs a specified treatment
+        condition. Defined as the average AUC across all replicates for the control minus the same for the specified
+        treatment condition.
+
+        In this situation, a negative value would indicate that the treatment tumour grew more than the control
+        tumour, indicating that the treatment is likely ineffective.
+
+        @param treatment_name [string] The name of a treatment condition in the CancerModel object to compare to the
+            control.
+        @param normalized [bool] Should the average of scaled response be used instead of the raw values?
+
+        @return [float] The difference between the average control AUC minus the average treatment AUC.
+        """
+        if not isinstance(treatment_name, str):
+            raise ValueError(f"The treatment_name parameter must be a string, not a {type(treatment_name)}!")
+        if treatment_name not in self.condition_names:
+            raise ValueError(f"The treatment condition {treatment_name} is not a valid treatment in this "
+                             f"CancerModel... Please choose from: {','.join(self.condition_names)}.")
+        if normalized:
+            control = self[treatment_name].auc_control_norm
+            treatment = self[treatment_name].auc_control_norm
+        else:
+            control = self[treatment_name].auc_control
+            treatment = self[treatment_name].auc
+
+        avg_auc_control_vs_treatment = sum(control) / len(control) - sum(treatment) / len(treatment)
+        return avg_auc_control_vs_treatment
 
 # -- Helper classes for CancerModel
 

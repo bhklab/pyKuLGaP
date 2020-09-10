@@ -42,7 +42,7 @@ def create_measurement_dict(all_models, kl_null_filename=None):
 
         for experimental_condition in cancer_model.condition_names:
             if 'Control' not in experimental_condition:
-                cur_case = cancer_model._CancerModel__experimental_conditions.get(experimental_condition)
+                cur_case = cancer_model[experimental_condition]
                 key = str(cur_case.source_id) + "*" + str(experimental_condition)
                 stats_dict[key] = {'tumour_type': cancer_model.tumour_type,
                                    'mRECIST': None,
@@ -115,9 +115,11 @@ def create_measurement_dict(all_models, kl_null_filename=None):
                 stats_dict[key]['auc_norm'] = dict_to_string(cur_case.auc_norm)
                 stats_dict[key]['auc_control'] = dict_to_string(cur_case.auc_control)
                 stats_dict[key]['auc_control_norm'] = dict_to_string(cur_case.auc_control_norm)
+                stats_dict[key]['auc_control_gp_vs_treatment_gp'] = \
+                    cancer_model.calculate_auc_treatment_minus_control(experimental_condition)
                 try:
-                    stats_dict[key]['auc_gp'] = cur_case.auc_gp[0]
-                    stats_dict[key]['auc_gp_control'] = cur_case.auc_gp_control[0]
+                    stats_dict[key]['auc_gp'] = cur_case.auc_gp
+                    stats_dict[key]['auc_gp_control'] = cur_case.auc_gp_control
                 except TypeError:
                     stats_dict[key]['auc_gp'] = ""
                     stats_dict[key]['auc_gp_control'] = ""

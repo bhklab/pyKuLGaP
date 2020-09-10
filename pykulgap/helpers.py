@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy.integrate import quad
-
+import sklearn.metrics
 
 def p_value(l1, l2):
     """
@@ -43,11 +43,8 @@ def calculate_AUC(variable, response):
     :param response [ndarray] the observations:
     :return [float] The area under the curve:    
     """
-    AUC = 0
     min_length = min(len(variable), len(response))
-    variable = variable.ravel()
-    for j in range(min_length - 1):
-        AUC += (response[j + 1] - response[j]) / (variable[j + 1] - variable[j])
+    AUC = sklearn.metrics.auc(x=variable[0:min_length + 1], y=response[0:min_length + 1])
     return AUC
 
 

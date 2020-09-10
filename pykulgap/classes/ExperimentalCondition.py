@@ -22,6 +22,9 @@ from pykulgap.helpers import calculate_AUC, compute_response_angle, relativize, 
 from pykulgap.plotting import create_measurement_dict
 import pandas as pd
 
+
+import sklearn.metrics
+
 plotting.change_plotting_library('matplotlib')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -252,7 +255,6 @@ class ExperimentalCondition:
         :param control [Boolean] whether the experimental_condition is from the control group:
         :return [None] Creates the full_data array
         """
-
         # control
         for j, entry in enumerate(control.response_norm.T):
             for y in entry:
@@ -295,7 +297,6 @@ class ExperimentalCondition:
         :param num_restarts The number of restarts in the optimisation: 
         :return [None] creates the GP objects:
         """
-
         logger.info("Fitting Gaussian processes for " + self.name)
 
         # control for number of measurements per replicate if time not same length
@@ -509,11 +510,10 @@ class ExperimentalCondition:
         :param response [ndarray] the observations
         :return [float] The area under the curve
         """
-        AUC = 0
         min_length = min(len(variable), len(response))
-        for j in range(min_length - 1):
-            AUC += (response[j + 1] - response[j]) / (variable[j + 1] - variable[j])
+        AUC = sklearn.metrics.auc(x=variable[0:min_length + 1], y=response[0:min_length + 1])
         return AUC
+
 
     def calculate_gp_auc(self):
         """

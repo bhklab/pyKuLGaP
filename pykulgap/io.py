@@ -110,7 +110,7 @@ def read_pdx_from_byte_stream(csv_byte_stream):
     treatment_response_experiment = TreatmentResponseExperiment(cancer_model_list=[cancer_model])
 
     # -- fit gaussian process model and calculate statistics
-    for model_name, cancer_model in treatment_response_experiment:
+    for _, cancer_model in treatment_response_experiment:
         cancer_model.normalize_experimental_conditions()
         cancer_model.fit_all_gps()
         cancer_model.compute_summary_statistics(fit_gp=True)
