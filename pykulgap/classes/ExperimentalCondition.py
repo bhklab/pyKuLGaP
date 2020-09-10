@@ -159,6 +159,17 @@ class ExperimentalCondition:
 
         self.tgi = None
 
+    # ---- properties
+    @property
+    def initial_response(self):
+        idx = min(self.variable_treatment_start_index, self.find_variable_start_index())
+        return self.response[idx]
+
+    @property
+    def initial_response_norm(self):
+        idx = min(self.variable_treatment_start_index, self.find_variable_start_index())
+        return self.response_norm[idx]
+
     # ---- Single Bracket Subsetting
     def __getitem__(self, item):
         """
