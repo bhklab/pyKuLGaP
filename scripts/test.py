@@ -79,7 +79,7 @@ allplot_figname = results_folder + "allplot.pdf"
 anon_filename = data_folder + "alldata_new.csv"
 
 failed_plot = []
-failed_gp=[]
+failed_gp = []
 failed_p_value = []
 failed_mrecist = []
 
@@ -95,8 +95,7 @@ fit_gp = True
 
 all_patients = read_pdx_data(anon_filename)
 
-all_patients = all_patients
-
+all_patients = all_patients[[0, 1, 2 ,3, 4]]
 
 tc = all_patients['P1']['C1']
 cc = all_patients['P1']['Control']
@@ -104,7 +103,8 @@ cc = all_patients['P1']['Control']
 
 
 full_stats_df = all_patients.summary_stats_df
-        
+
+
 
 
 # =============================================================================

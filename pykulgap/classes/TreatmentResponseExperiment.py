@@ -51,15 +51,16 @@ class TreatmentResponseExperiment:
         # Model name indexing
         if all([isinstance(name, str) for name in item]):
             if all([name in self.model_names for name in item]):
-                return [self.__cancer_models.get(name) for name in item] if len(item) > 1 else \
-                    self.__cancer_models.get(item[0])
+                return TreatmentResponseExperiment([self.__cancer_models.get(name) for name in item]) if len(item) > 1 \
+                    else self.__cancer_models.get(item[0])
         # Numeric indexing
         elif all([isinstance(idx, int) for idx in item]):
             if max(item) > len(self.model_names) - 1 or min(item) < 0:
                 raise IndexError(f"One of the specified indexes is out of bounds: valid indexes must be between"
                                  f"0 and {len(self.model_names) - 1}")
             else:
-                return [self.cancer_models[idx] for idx in item] if len(item) > 1 else self.cancer_models[item[0]]
+                return TreatmentResponseExperiment([self.cancer_models[idx] for idx in item]) if len(item) > 1 \
+                    else self.cancer_models[item[0]]
         # Invalid index
         else:
             raise ValueError(f"The value(s) {item} is/are not string(s) or integer(s), valid indexes are "
