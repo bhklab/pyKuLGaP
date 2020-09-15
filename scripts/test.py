@@ -13,8 +13,6 @@ from pykulgap.plotting import plot_everything, create_and_plot_agreements, get_c
 results_folder = "results"
 data_folder = "data/"
 
-
-
 ############WHERE THE INPUT DATA IS SAVED##########################################################
 anon_filename = data_folder + "alldata_new.csv"
 filename_crown = data_folder + "20180402_sheng_results.csv"

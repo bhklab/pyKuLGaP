@@ -392,11 +392,11 @@ class CancerModel:
             raise ValueError(f"The treatment condition {treatment_name} is not a valid treatment in this "
                              f"CancerModel... Please choose from: {','.join(self.condition_names)}.")
         if normalized:
-            control = self[treatment_name].auc_control_norm
-            treatment = self[treatment_name].auc_control_norm
+            control = list(self[treatment_name].auc_control_norm.values())
+            treatment = list(self[treatment_name].auc_norm.values())
         else:
-            control = self[treatment_name].auc_control
-            treatment = self[treatment_name].auc
+            control = list(self[treatment_name].auc_control.values())
+            treatment = list(self[treatment_name].auc.values())
 
         avg_auc_control_vs_treatment = sum(control) / len(control) - sum(treatment) / len(treatment)
         return avg_auc_control_vs_treatment

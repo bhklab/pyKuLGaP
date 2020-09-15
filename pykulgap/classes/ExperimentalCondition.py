@@ -21,7 +21,7 @@ import numpy as np
 from pykulgap.helpers import calculate_AUC, compute_response_angle, relativize, centre
 from pykulgap.plotting import create_measurement_dict
 import pandas as pd
-
+from scipy import stats
 
 import sklearn.metrics
 
@@ -54,6 +54,7 @@ class ExperimentalCondition:
 
     It can have multiple replicates (ie. data for multiple growth curves)
     """
+
     def __init__(self, name, source_id=None, variable=None, response=None, replicates=None,
                  variable_treatment_start=None, is_control=False):
         """
@@ -141,6 +142,8 @@ class ExperimentalCondition:
         # credible intervals stats
         self.credible_intervals = []
         self.percent_credible_intervals = None
+        self.responder_pvalue_AUC = None
+        self.responder_pvalue_angle = None
 
         self.rates_list = []
         self.rates_list_control = []
@@ -157,6 +160,38 @@ class ExperimentalCondition:
         self.delta_log_likelihood_h0_h1 = None
 
         self.tgi = None
+
+
+    @property
+    def responder_AUC(self, p_value=0.05):
+        """
+        Decide if the cancer model is a responder based on AUC for a specified p-value
+        cut-off.
+
+        @param p_value [`float`] The p-value cutoff. Default is 0.05.
+
+        @return [`bool`] True of False, where True means the cancer model is a
+            responder to the treatment.
+        """
+        if self.responder_pvalue_AUC is None:
+            self.calculate_responder_pvalue_AUC()
+        return self.responder_pvalue_AUC < p_value
+
+    @property
+    def responder_angle(self, p_value=0.05):
+        """
+        Decide if the cancer model is a responder based on response angle for a specified p-value
+        cut-off.
+
+        @param p_value [`float`] The p-value cutoff. Default is 0.05.
+
+        @return [`bool`] True of False, where True means the cancer model is a
+            responder to the treatment.
+        """
+        if self.responder_pvalue_angle is None:
+            self.calculate_responder_pvalue_angle()
+        return self.responder_pvalue_angle < p_value
+
 
     # ---- Single Bracket Subsetting
     def __getitem__(self, item):
@@ -401,6 +436,23 @@ class ExperimentalCondition:
 
         logger.info(self.kl_divergence)
 
+    def calculate_responder_pvalue_AUC(self):
+        """
+        Conduct a Mann-Whitney rank test between the AUC values for the treatment
+        vs the AUC of the control and return the p-value.
+        """
+        self.responder_pvalue_AUC = \
+            stats.mannwhitneyu(list(self.auc.values()), list(self.auc_control.values()), alternative="less").pvalue
+
+    def calculate_responder_pvalue_angle(self):
+        """
+        Conduct a Mann-Whitney rank test between the response angle values for the treatment
+        vs the response angle of the control and return the p-value.
+        """
+        self.responder_pvalue_angle = \
+            stats.mannwhitneyu(list(self.response_angle.values()),
+                               list(self.response_angle_control.values()), alternative="less").pvalue
+
     @staticmethod
     def __fit_single_gaussian_process(variable, response_norm, num_restarts=7):
         """
@@ -512,7 +564,6 @@ class ExperimentalCondition:
         AUC = sklearn.metrics.auc(x=variable[0:min_length + 1], y=response[0:min_length + 1])
         return AUC
 
-
     def calculate_gp_auc(self):
         """
         Builds the AUC (Area under the curve) with respect to the GP fit.
@@ -520,7 +571,6 @@ class ExperimentalCondition:
         :return
         """
         self.auc_gp = self.__calculate_AUC(self.variable, self.gp.predict(self.variable)[0])
-
 
     def calculate_auc(self, control):
         """
