@@ -1,6 +1,6 @@
 # pyKuLGaP
 
-A Python package for statistical analysis and plotting of Patient Derived Xenographt (PDX) models of cancer. 
+A Python package for statistical analysis and plotting of Patient Derived Xenograft (PDX) models of cancer. 
 
 ## Classes
 
